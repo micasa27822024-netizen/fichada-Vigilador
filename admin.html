@@ -60,4 +60,225 @@
               <th class="p-4">Nombre</th>
               <th class="p-4">Objetivo</th>
               <th class="p-4 text-center">Tipo</th>
-              <th class
+              <th class="p-4 text-center">Ubicación</th>
+              <th class="p-4 text-center">Foto</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoTabla" class="divide-y divide-slate-700/50">
+            <tr>
+              <td colspan="7" class="p-8 text-center text-slate-400">
+                <i class="fa-solid fa-spinner fa-spin text-2xl text-emerald-500 mb-2"></i>
+                <p>Cargando información...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="modalFoto" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 max-w-lg w-full relative space-y-4">
+      <button onclick="cerrarModal()" class="absolute top-3 right-3 text-slate-400 hover:text-white text-xl">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <h3 class="font-bold text-white text-base">Foto de Marcación</h3>
+      <div class="w-full h-80 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center relative">
+        <img id="imgModal" src="" alt="Foto Fichada" class="w-full h-full object-contain">
+      </div>
+      <div class="text-right">
+        <a id="btnDriveDirecto" href="#" target="_blank" class="text-xs text-amber-400 hover:underline inline-flex items-center gap-1">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir directamente en Drive
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // URL desplegada de Google Apps Script
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycby_pYl-pIBgd5Zr22tllEVMCyHe-jT_FpYUH9VbDHu2ds4zRTSEJC0h90IujJqBqXaHhQ/exec";
+    
+    let datosLocales = [];
+    let datosFiltradosActuales = [];
+
+    window.onload = function() {
+      cargarDatos();
+    };
+
+    function cargarDatos() {
+      const icono = document.getElementById('icono-reload');
+      icono.classList.add('fa-spin');
+
+      fetch(URL_APPS_SCRIPT)
+        .then(res => res.json())
+        .then(data => {
+          datosLocales = data;
+          filtrarTabla();
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('cuerpoTabla').innerHTML = `
+            <tr>
+              <td colspan="7" class="p-8 text-center text-rose-400">
+                <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
+                <p>Error al obtener registros. Verifica la URL de Apps Script.</p>
+              </td>
+            </tr>`;
+        })
+        .finally(() => {
+          icono.classList.remove('fa-spin');
+        });
+    }
+
+    function renderizarTabla(registros) {
+      const cuerpo = document.getElementById('cuerpoTabla');
+      cuerpo.innerHTML = "";
+
+      if (!registros || registros.length === 0) {
+        cuerpo.innerHTML = `
+          <tr>
+            <td colspan="7" class="p-8 text-center text-slate-400">No hay registros cargados aún.</td>
+          </tr>`;
+        return;
+      }
+
+      // Ordenar por fecha descendente (los más recientes primero)
+      const ordenados = [...registros].reverse();
+
+      ordenados.forEach(fila => {
+        const fecha = fila[0] ? new Date(fila[0]).toLocaleString('es-AR') : '-';
+        const legajo = fila[1] || '-';
+        const nombre = fila[2] || '-';
+        const objetivo = fila[3] || '-';
+        const tipo = fila[4] || '-';
+        const urlMapa = fila[5] || '';
+        const urlFoto = fila[6] || '';
+
+        const badgeColor = tipo === 'ENTRADA' 
+          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+          : 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+
+        const btnMapa = (urlMapa && urlMapa.includes('http'))
+          ? `<a href="${urlMapa}" target="_blank" class="inline-flex items-center gap-1 bg-sky-600/20 text-sky-400 hover:bg-sky-600/40 border border-sky-500/30 px-3 py-1 rounded-lg text-xs font-semibold transition">
+              <i class="fa-solid fa-map-location-dot"></i> Mapa
+             </a>`
+          : `<span class="text-xs text-slate-500">Sin GPS</span>`;
+
+        const btnFoto = (urlFoto && urlFoto.includes('http'))
+          ? `<button onclick="abrirFoto('${urlFoto}')" class="inline-flex items-center gap-1 bg-amber-600/20 text-amber-400 hover:bg-amber-600/40 border border-amber-500/30 px-3 py-1 rounded-lg text-xs font-semibold transition">
+              <i class="fa-solid fa-image"></i> Ver Foto
+             </button>`
+          : `<span class="text-xs text-slate-500">Sin Foto</span>`;
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-700/30 transition";
+        tr.innerHTML = `
+          <td class="p-4 font-mono text-xs text-slate-300">${fecha}</td>
+          <td class="p-4 font-semibold text-white">${legajo}</td>
+          <td class="p-4 font-medium text-slate-200">${nombre}</td>
+          <td class="p-4 text-slate-400">${objetivo}</td>
+          <td class="p-4 text-center">
+            <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeColor}">${tipo}</span>
+          </td>
+          <td class="p-4 text-center">${btnMapa}</td>
+          <td class="p-4 text-center">${btnFoto}</td>
+        `;
+        cuerpo.appendChild(tr);
+      });
+    }
+
+    function filtrarTabla() {
+      const busqueda = document.getElementById('inputBusqueda').value.toLowerCase();
+      const filtroTipo = document.getElementById('filtroTipo').value;
+
+      datosFiltradosActuales = datosLocales.filter(fila => {
+        const textoFila = `${fila[1]} ${fila[2]} ${fila[3]}`.toLowerCase();
+        const coincideBusqueda = textoFila.includes(busqueda);
+        const coincideTipo = (filtroTipo === 'TODOS') || (fila[4] === filtroTipo);
+
+        return coincideBusqueda && coincideTipo;
+      });
+
+      renderizarTabla(datosFiltradosActuales);
+    }
+
+    function obtenerUrlDirectaFoto(url) {
+      if (!url) return '';
+      const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://lh3.googleusercontent.com/d/${match[1]}`;
+      }
+      return url;
+    }
+
+    function abrirFoto(url) {
+      const urlDirecta = obtenerUrlDirectaFoto(url);
+      document.getElementById('imgModal').src = urlDirecta;
+      document.getElementById('btnDriveDirecto').href = url;
+      document.getElementById('modalFoto').classList.remove('hidden');
+    }
+
+    function cerrarModal() {
+      document.getElementById('modalFoto').classList.add('hidden');
+      document.getElementById('imgModal').src = "";
+    }
+
+    // --- FUNCIONES PARA EXPORTAR ---
+    function exportarExcel() {
+      if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
+        return alert("No hay datos visibles para exportar.");
+      }
+
+      const cabeceras = [["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo", "Ubicación (Mapa)", "Foto URL"]];
+      const filas = datosFiltradosActuales.map(f => [
+        f[0] ? new Date(f[0]).toLocaleString('es-AR') : '',
+        f[1] || '',
+        f[2] || '',
+        f[3] || '',
+        f[4] || '',
+        f[5] || '',
+        f[6] || ''
+      ]);
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([...cabeceras, ...filas]);
+      XLSX.utils.book_append_sheet(wb, ws, "Marcaciones");
+      XLSX.writeFile(wb, `Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    function exportarPDF() {
+      if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
+        return alert("No hay datos visibles para exportar.");
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape'); // Formato horizontal para mejor ajuste
+
+      doc.setFontSize(14);
+      doc.text("Reporte de Control de Asistencia y Marcaciones", 14, 15);
+      doc.setFontSize(9);
+      doc.text(`Generado el: ${new Date().toLocaleString('es-AR')}`, 14, 21);
+
+      const filas = datosFiltradosActuales.map(f => [
+        f[0] ? new Date(f[0]).toLocaleString('es-AR') : '',
+        f[1] || '',
+        f[2] || '',
+        f[3] || '',
+        f[4] || ''
+      ]);
+
+      doc.autoTable({
+        startY: 25,
+        head: [['Fecha y Hora', 'Legajo', 'Nombre', 'Objetivo', 'Tipo']],
+        body: filas,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 8 }
+      });
+
+      doc.save(`Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.pdf`);
+    }
+  </script>
+</body>
+</html>
