@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Asistencia - Seguridad</title>
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+  <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-700">
+    
+    <!-- Encabezado -->
+    <div class="bg-slate-950 p-6 text-center border-b border-slate-700">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 mb-2">
+        <i class="fa-solid fa-shield-halved text-amber-500 text-2xl"></i>
+      </div>
+      <h1 class="text-xl font-bold tracking-wide text-white uppercase">Control de Asistencia</h1>
+      <p class="text-xs text-slate-400 mt-1">Puesto de Control & Vigilancia</p>
+    </div>
+
+    <!-- Formulario -->
+    <div class="p-6 space-y-4">
+      
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">N° de Legajo / DNI</label>
+        <input type="number" id="legajo" placeholder="Ingrese su número" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500 transition">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Nombre Completo</label>
+        <input type="text" id="nombre" placeholder="Nombre y Apellido" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500 transition">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Objetivo / Puesto</label>
+        <input type="text" id="objetivo" placeholder="Ej: Objetivo Depósito Central" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500 transition">
+      </div>
+
+      <!-- Cámara -->
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold uppercase text-slate-400">Validación Facial (Foto)</label>
+        <div class="relative w-full h-48 bg-slate-950 rounded-lg overflow-hidden border border-slate-700 flex items-center justify-center">
+          <video id="webcam" autoplay playsinline class="w-full h-full object-cover"></video>
+          <canvas id="canvas" class="hidden"></canvas>
+          <div id="foto-check" class="absolute inset-0 bg-emerald-500/20 hidden flex items-center justify-center">
+            <i class="fa-solid fa-circle-check text-emerald-400 text-5xl"></i>
+          </div>
+        </div>
+        <button type="button" onclick="capturarFoto()" class="w-full bg-slate-700 hover:bg-slate-600 text-xs py-2 rounded-lg font-semibold transition text-slate-200">
+          <i class="fa-solid fa-camera mr-2"></i>Tomar Foto
+        </button>
+      </div>
+
+      <!-- Estado GPS -->
+      <div class="flex items-center text-xs text-slate-400 space-x-2 bg-slate-900 p-3 rounded-lg border border-slate-800">
+        <i class="fa-solid fa-location-dot text-amber-500" id="icon-gps"></i>
+        <span id="gps-status">Obteniendo coordenadas GPS...</span>
+      </div>
+
+      <!-- Botones Fichar -->
+      <div class="grid grid-cols-2 gap-4 pt-2">
+        <button onclick="enviarFichada('ENTRADA')" id="btn-entrada" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-right-to-bracket"></i>
+          <span>ENTRADA</span>
+        </button>
+
+        <button onclick="enviarFichada('SALIDA')" id="btn-salida" class="bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>SALIDA</span>
+        </button>
+      </div>
+
+      <!-- Mensaje de Resultado -->
+      <div id="resultado" class="hidden p-4 rounded-xl text-xs font-semibold text-center mt-4"></div>
+
+    </div>
+  </div>
+
+  <script>
+    // =================================================================
+    // CONFIGURACIÓN OBLIGATORIA
+    // Reemplaza esta URL por la que te da Google Apps Script al implementar como Web App
+    // =================================================================
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyOYaeEAlQlC3Ut77F4fdgNVzvU22RUjU39xq7n0b0LWo43HatGLX804AqQt4dsDxS7/exec";
+
+    let latitud = 0;
+    let longitud = 0;
+    let fotoBase64 = "";
+
+    window.onload = function() {
+      iniciarCamara();
+      obtenerGPS();
+    };
+
+    function iniciarCamara() {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(stream => {
+          document.getElementById('webcam').srcObject = stream;
+        })
+        .catch(err => console.log("Cámara inaccesible: " + err));
+    }
+
+    function obtenerGPS() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            latitud = pos.coords.latitude;
+            longitud = pos.coords.longitude;
+            document.getElementById('gps-status').innerText = `GPS Conectado (${latitud.toFixed(4)}, ${longitud.toFixed(4)})`;
+            document.getElementById('icon-gps').classList.replace('text-amber-500', 'text-emerald-500');
+          },
+          err => {
+            document.getElementById('gps-status').innerText = "Sin acceso a ubicación GPS";
+          }
+        );
+      }
+    }
+
+    function capturarFoto() {
+      const video = document.getElementById('webcam');
+      const canvas = document.getElementById('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      fotoBase64 = canvas.toDataURL('image/jpeg', 0.6); // Comprime la imagen
+      
+      document.getElementById('foto-check').classList.remove('hidden');
+      setTimeout(() => document.getElementById('foto-check').classList.add('hidden'), 1500);
+    }
+
+    function enviarFichada(tipo) {
+      const legajo = document.getElementById('legajo').value;
+      const nombre = document.getElementById('nombre').value;
+      const objetivo = document.getElementById('objetivo').value;
+
+      if (!legajo || !nombre || !objetivo) {
+        alert("Por favor complete todos los campos.");
+        return;
+      }
+
+      if (!fotoBase64) {
+        alert("Es obligatorio tomar la foto de validación.");
+        return;
+      }
+
+      const datos = {
+        legajo: legajo,
+        nombre: nombre,
+        objetivo: objetivo,
+        tipo: tipo,
+        latitud: latitud,
+        longitud: longitud,
+        fotoBase64: fotoBase64
+      };
+
+      toggleBotones(true);
+      mostrarResultado("Enviando registro y subiendo foto...", "bg-slate-700 text-white");
+
+      fetch(URL_APPS_SCRIPT, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "text/plain"
+        },
+        body: JSON.stringify(datos)
+      })
+      .then(() => {
+        toggleBotones(false);
+        mostrarResultado(`Fichada de ${tipo} enviada con éxito.`, "bg-emerald-950 border border-emerald-500 text-emerald-200");
+        limpiarFormulario();
+      })
+      .catch(error => {
+        toggleBotones(false);
+        mostrarResultado("Error de conexión: " + error, "bg-rose-950 border border-rose-500 text-rose-200");
+      });
+    }
+
+    function mostrarResultado(texto, clases) {
+      const div = document.getElementById('resultado');
+      div.className = `p-4 rounded-xl text-xs font-semibold text-center mt-4 ${clases}`;
+      div.innerHTML = texto;
+      div.classList.remove('hidden');
+    }
+
+    function toggleBotones(deshabilitar) {
+      document.getElementById('btn-entrada').disabled = deshabilitar;
+      document.getElementById('btn-salida').disabled = deshabilitar;
+    }
+
+    function limpiarFormulario() {
+      fotoBase64 = "";
+      document.getElementById('legajo').value = "";
+      document.getElementById('nombre').value = "";
+    }
+  </script>
+</body>
+</html>
