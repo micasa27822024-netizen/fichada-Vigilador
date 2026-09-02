@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Historial de Horas y Marcaciones</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+
+  <div class="max-w-4xl mx-auto space-y-6">
+    
+    <!-- CONSULTA DE LEGAJO -->
+    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+      <h1 class="text-xl font-bold text-white flex items-center gap-2">
+        <i class="fa-solid fa-user-clock text-emerald-500"></i> Mi Consulta de Horas
+      </h1>
+      <div class="flex flex-col md:flex-row gap-3">
+        <input type="text" id="legajoInput" placeholder="Ingresa tu número de legajo..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+        <button onclick="buscarMisHoras()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg">
+          <i class="fa-solid fa-magnifying-glass"></i> Consultar
+        </button>
+      </div>
+    </div>
+
+    <!-- TARJETAS DE RESUMEN -->
+    <div id="resumenHoras" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
+        <p class="text-xs text-slate-400 font-semibold">HORAS DIURNAS (06-21hs)</p>
+        <p id="horasDiurnas" class="text-2xl font-bold text-amber-400 mt-1">0.00 hs</p>
+      </div>
+      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
+        <p class="text-xs text-slate-400 font-semibold">HORAS NOCTURNAS (21-06hs)</p>
+        <p id="horasNocturnas" class="text-2xl font-bold text-indigo-400 mt-1">0.00 hs</p>
+      </div>
+      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
+        <p class="text-xs text-slate-400 font-semibold">TOTAL TRABAJADO</p>
+        <p id="horasTotales" class="text-2xl font-bold text-emerald-400 mt-1">0.00 hs</p>
+      </div>
+    </div>
+
+    <!-- TABLA DE DETALLE DE TURNOS -->
+    <div id="contenedorTabla" class="hidden bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-700">
+            <tr>
+              <th class="p-4">Entrada</th>
+              <th class="p-4">Salida</th>
+              <th class="p-4">Objetivo</th>
+              <th class="p-4 text-center">Diurnas</th>
+              <th class="p-4 text-center">Nocturnas</th>
+              <th class="p-4 text-center">Total</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoDetalle" class="divide-y divide-slate-700/50"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycby_pYl-pIBgd5Zr22tllEVMCyHe-jT_FpYUH9VbDHu2ds4zRTSEJC0h90IujJqBqXaHhQ/exec";
+
+    function calcularHoras(f1, f2) {
+      let inicio = new Date(f1);
+      let fin = new Date(f2);
+      if (isNaN(inicio) || isNaN(fin) || fin <= inicio) return { d: 0, n: 0, t: 0 };
+
+      let diurnas = 0, nocturnas = 0;
+      let cur = new Date(inicio);
+
+      while (cur < fin) {
+        let h = cur.getHours();
+        if (h >= 6 && h < 21) diurnas += 1/60;
+        else nocturnas += 1/60;
+        cur.setMinutes(cur.getMinutes() + 1);
+      }
+      return { d: diurnas, n: nocturnas, t: diurnas + nocturnas };
+    }
+
+    function buscarMisHoras() {
+      const legajo = document.getElementById('legajoInput').value.trim();
+      if (!legajo) return alert("Por favor ingresa tu número de legajo.");
+
+      fetch(URL_APPS_SCRIPT)
+        .then(res => res.json())
+        .then(datos => {
+          const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajo);
+          
+          if (marcacionesVigilador.length === 0) {
+            alert("No se encontraron registros para el legajo ingresado.");
+            return;
+          }
+
+          // Ordenar cronológicamente
+          marcacionesVigilador.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+
+          let totalD = 0, totalN = 0, totalT = 0;
+          const tabla = document.getElementById('cuerpoDetalle');
+          tabla.innerHTML = "";
+
+          // Emparejar Entradas y Salidas consecutivas
+          for (let i = 0; i < marcacionesVigilador.length; i++) {
+            if (marcacionesVigilador[i][4] === 'ENTRADA') {
+              let entrada = marcacionesVigilador[i];
+              let salida = marcacionesVigilador[i + 1] && marcacionesVigilador[i + 1][4] === 'SALIDA' ? marcacionesVigilador[i + 1] : null;
+
+              let horas = salida ? calcularHoras(entrada[0], salida[0]) : { d: 0, n: 0, t: 0 };
+
+              totalD += horas.d;
+              totalN += horas.n;
+              totalT += horas.t;
+
+              const tr = document.createElement('tr');
+              tr.className = "hover:bg-slate-700/30 transition";
+              tr.innerHTML = `
+                <td class="p-4 text-xs font-mono">${new Date(entrada[0]).toLocaleString('es-AR')}</td>
+                <td class="p-4 text-xs font-mono">${salida ? new Date(salida[0]).toLocaleString('es-AR') : '<span class="text-amber-400">En Turno</span>'}</td>
+                <td class="p-4">${entrada[3]}</td>
+                <td class="p-4 text-center font-semibold text-amber-400">${horas.d.toFixed(2)} hs</td>
+                <td class="p-4 text-center font-semibold text-indigo-400">${horas.n.toFixed(2)} hs</td>
+                <td class="p-4 text-center font-bold text-emerald-400">${horas.t.toFixed(2)} hs</td>
+              `;
+              tabla.appendChild(tr);
+            }
+          }
+
+          document.getElementById('horasDiurnas').innerText = `${totalD.toFixed(2)} hs`;
+          document.getElementById('horasNocturnas').innerText = `${totalN.toFixed(2)} hs`;
+          document.getElementById('horasTotales').innerText = `${totalT.toFixed(2)} hs`;
+
+          document.getElementById('resumenHoras').classList.remove('hidden');
+          document.getElementById('contenedorTabla').classList.remove('hidden');
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Ocurrió un error al consultar las marcaciones.");
+        });
+    }
+  </script>
+</body>
+</html>
