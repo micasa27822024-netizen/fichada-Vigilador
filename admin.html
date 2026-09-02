@@ -7,14 +7,14 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   
+  <!-- LIBRERÍAS DE EXPORTACIÓN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.autotable.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
 
   <div class="max-w-7xl mx-auto space-y-6">
     
+    <!-- ENCABEZADO -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
       <div>
         <h1 class="text-2xl font-bold text-white flex items-center gap-2">
@@ -28,6 +28,7 @@
       </button>
     </div>
 
+    <!-- FILTROS, BÚSQUEDA Y EXPORTACIÓN -->
     <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col md:flex-row gap-4 justify-between items-center">
       <div class="flex-1 relative w-full">
         <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"></i>
@@ -50,6 +51,7 @@
       </div>
     </div>
 
+    <!-- TABLA DE REGISTROS -->
     <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-slate-300">
@@ -78,6 +80,7 @@
 
   </div>
 
+  <!-- MODAL FOTO -->
   <div id="modalFoto" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 max-w-lg w-full relative space-y-4">
       <button onclick="cerrarModal()" class="absolute top-3 right-3 text-slate-400 hover:text-white text-xl">
@@ -96,7 +99,6 @@
   </div>
 
   <script>
-    // URL desplegada de Google Apps Script
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycby_pYl-pIBgd5Zr22tllEVMCyHe-jT_FpYUH9VbDHu2ds4zRTSEJC0h90IujJqBqXaHhQ/exec";
     
     let datosLocales = [];
@@ -122,7 +124,7 @@
             <tr>
               <td colspan="7" class="p-8 text-center text-rose-400">
                 <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
-                <p>Error al obtener registros. Verifica la URL de Apps Script.</p>
+                <p>Error al obtener registros. Verifica la conexión.</p>
               </td>
             </tr>`;
         })
@@ -143,7 +145,6 @@
         return;
       }
 
-      // Ordenar por fecha descendente (los más recientes primero)
       const ordenados = [...registros].reverse();
 
       ordenados.forEach(fila => {
@@ -224,7 +225,7 @@
       document.getElementById('imgModal').src = "";
     }
 
-    // --- FUNCIONES PARA EXPORTAR ---
+    // EXPORTAR EXCEL
     function exportarExcel() {
       if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
         return alert("No hay datos visibles para exportar.");
@@ -247,63 +248,66 @@
       XLSX.writeFile(wb, `Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
- function exportarPDF() {
-  if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
-    return alert("No hay datos visibles para exportar.");
-  }
+    // EXPORTAR PDF
+    function exportarPDF() {
+      if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
+        return alert("No hay datos visibles para exportar.");
+      }
 
-  // Crear una ventana limpia para la impresión/guardado en PDF
-  const ventanaImpresion = window.open('', '_blank');
-  
-  const filasHTML = datosFiltradosActuales.map(f => `
-    <tr>
-      <td style="padding: 8px; border: 1px solid #ddd;">${f[0] ? new Date(f[0]).toLocaleString('es-AR') : ''}</td>
-      <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${f[1] || ''}</td>
-      <td style="padding: 8px; border: 1px solid #ddd;">${f[2] || ''}</td>
-      <td style="padding: 8px; border: 1px solid #ddd;">${f[3] || ''}</td>
-      <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${f[4] || ''}</td>
-    </tr>
-  `).join('');
+      const ventanaImpresion = window.open('', '_blank');
+      
+      const filasHTML = datosFiltradosActuales.map(f => `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #ddd;">${f[0] ? new Date(f[0]).toLocaleString('es-AR') : ''}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${f[1] || ''}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${f[2] || ''}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${f[3] || ''}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${f[4] || ''}</td>
+        </tr>
+      `).join('');
 
-  ventanaImpresion.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Reporte de Marcaciones</title>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-        h2 { margin-bottom: 5px; color: #0f172a; }
-        p { font-size: 12px; color: #666; margin-top: 0; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        th { background-color: #0f172a; color: white; padding: 10px; border: 1px solid #0f172a; text-align: left; }
-      </style>
-    </head>
-    <body>
-      <h2>Reporte de Control de Asistencia y Marcaciones</h2>
-      <p>Generado el: ${new Date().toLocaleString('es-AR')}</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Fecha y Hora</th>
-            <th>Legajo</th>
-            <th>Nombre</th>
-            <th>Objetivo</th>
-            <th>Tipo</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${filasHTML}
-        </tbody>
-      </table>
-      <script>
-        window.onload = function() {
-          window.print();
-          window.close();
-        };
-      <\/script>
-    </body>
-    </html>
-    `);
+      ventanaImpresion.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Reporte de Marcaciones</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+            h2 { margin-bottom: 5px; color: #0f172a; }
+            p { font-size: 12px; color: #666; margin-top: 0; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th { background-color: #0f172a; color: white; padding: 10px; border: 1px solid #0f172a; text-align: left; }
+          </style>
+        </head>
+        <body>
+          <h2>Reporte de Control de Asistencia y Marcaciones</h2>
+          <p>Generado el: ${new Date().toLocaleString('es-AR')}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha y Hora</th>
+                <th>Legajo</th>
+                <th>Nombre</th>
+                <th>Objetivo</th>
+                <th>Tipo</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filasHTML}
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            };
+          <\/script>
+        </body>
+        </html>
+      `);
 
-  ventanaImpresion.document.close();
-}
+      ventanaImpresion.document.close();
+    }
+  </script>
+</body>
+</html>
