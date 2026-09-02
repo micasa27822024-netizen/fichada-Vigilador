@@ -76,8 +76,13 @@
         <i class="fa-solid fa-xmark"></i>
       </button>
       <h3 class="font-bold text-white text-base">Foto de Marcación</h3>
-      <div class="w-full h-80 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center">
+      <div class="w-full h-80 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center relative">
         <img id="imgModal" src="" alt="Foto Fichada" class="w-full h-full object-contain">
+      </div>
+      <div class="text-right">
+        <a id="btnDriveDirecto" href="#" target="_blank" class="text-xs text-amber-400 hover:underline inline-flex items-center gap-1">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir directamente en Drive
+        </a>
       </div>
     </div>
   </div>
@@ -189,8 +194,20 @@
       renderizarTabla(filtrados);
     }
 
+    function obtenerUrlDirectaFoto(url) {
+      if (!url) return '';
+      // Si la URL contiene el patrón de archivo de Google Drive, se extrae el ID
+      const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://lh3.googleusercontent.com/d/${match[1]}`;
+      }
+      return url;
+    }
+
     function abrirFoto(url) {
-      document.getElementById('imgModal').src = url;
+      const urlDirecta = obtenerUrlDirectaFoto(url);
+      document.getElementById('imgModal').src = urlDirecta;
+      document.getElementById('btnDriveDirecto').href = url;
       document.getElementById('modalFoto').classList.remove('hidden');
     }
 
