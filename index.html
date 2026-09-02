@@ -43,35 +43,22 @@
 
     <!-- BOTONES DE ENVÍO -->
     <div class="grid grid-cols-2 gap-4 pt-2">
-      <button onclick="enviarFichada('ENTRADA')" class="bg-emerald-600 hover:bg-emerald-500 font-bold py-3 rounded-xl transition">ENTRADA</button>
-      <button onclick="enviarFichada('SALIDA')" class="bg-rose-600 hover:bg-rose-500 font-bold py-3 rounded-xl transition">SALIDA</button>
+      <button onclick="procesarEnvio('ENTRADA')" class="bg-emerald-600 hover:bg-emerald-500 font-bold py-3 rounded-xl transition">ENTRADA</button>
+      <button onclick="procesarEnvio('SALIDA')" class="bg-rose-600 hover:bg-rose-500 font-bold py-3 rounded-xl transition">SALIDA</button>
     </div>
 
     <div id="resultado" class="hidden p-3 rounded-xl text-xs text-center"></div>
   </div>
 
   <script>
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxImgrF72ISE6wBuhyafL-q88UWM9vdThrsjhpVXR-Ws2J3d1Sg0Jw4L5Tnkcg9ZXsXzA/exec";
+    // Coloca tu URL completa de Apps Script aquí
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbwrA5zdlX6ey5TFbR8HFnUQEIN0f4fuUWnI7v5V8yjrasGrcBmWPN5ySiB0Aum5EQpBvQ/exec";
     let fotoBase64Global = "";
-    let latitudGlobal = 0;
-    let longitudGlobal = 0;
 
     window.onload = function() {
-      // Activar Cámara
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
         .then(stream => { document.getElementById('webcam').srcObject = stream; })
         .catch(err => alert("Error al acceder a la cámara: " + err));
-
-      // Obatener Ubicación GPS
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            latitudGlobal = pos.coords.latitude;
-            longitudGlobal = pos.coords.longitude;
-          },
-          err => console.log("GPS no permitido o no disponible.")
-        );
-      }
     };
 
     function capturarFoto() {
@@ -94,7 +81,7 @@
       status.className = "text-xs text-emerald-400 text-center font-semibold";
     }
 
-    function enviarFichada(tipo) {
+    function procesarEnvio(tipo) {
       const legajo = document.getElementById('legajo').value;
       const nombre = document.getElementById('nombre').value;
       const objetivo = document.getElementById('objetivo').value;
@@ -109,20 +96,40 @@
         return;
       }
 
+      const divResultado = document.getElementById('resultado');
+      divResultado.className = "p-3 rounded-xl text-xs text-center bg-slate-700 text-white";
+      divResultado.innerText = "Obteniendo ubicación GPS...";
+      divResultado.classList.remove('hidden');
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            enviarFichada(tipo, pos.coords.latitude, pos.coords.longitude);
+          },
+          err => {
+            console.warn("GPS no disponible/denegado: " + err.message);
+            enviarFichada(tipo, 0, 0);
+          },
+          { timeout: 7000, enableHighAccuracy: true }
+        );
+      } else {
+        enviarFichada(tipo, 0, 0);
+      }
+    }
+
+    function enviarFichada(tipo, lat, lng) {
       const datos = {
-        legajo: legajo,
-        nombre: nombre,
-        objetivo: objetivo,
+        legajo: document.getElementById('legajo').value,
+        nombre: document.getElementById('nombre').value,
+        objetivo: document.getElementById('objetivo').value,
         tipo: tipo,
-        latitud: latitudGlobal,
-        longitud: longitudGlobal,
+        latitud: lat,
+        longitud: lng,
         fotoBase64: fotoBase64Global
       };
 
       const divResultado = document.getElementById('resultado');
-      divResultado.className = "p-3 rounded-xl text-xs text-center bg-slate-700 text-white";
-      divResultado.innerText = "Registrando ubicación y datos...";
-      divResultado.classList.remove('hidden');
+      divResultado.innerText = "Registrando datos y enviando foto...";
 
       fetch(URL_APPS_SCRIPT, {
         method: "POST",
@@ -136,7 +143,7 @@
       })
       .catch(err => {
         divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
-        divResultado.innerText = "Error: " + err;
+        divResultado.innerText = "Error de envío: " + err;
       });
     }
   </script>
