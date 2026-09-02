@@ -27,7 +27,7 @@
       <input type="text" id="objetivo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
     </div>
 
-    <!-- CÁMARA Y VISTA PREVIA -->
+    <!-- CÁMARA -->
     <div class="space-y-2">
       <label class="block text-xs uppercase text-slate-400">Validación Facial</label>
       <div class="relative w-full h-48 bg-slate-950 rounded-lg overflow-hidden border border-slate-700 flex items-center justify-center">
@@ -51,17 +51,29 @@
   </div>
 
   <script>
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycby0KX3K7vxpfksLRmJlUzjPTWdKn1xgmxiH2_ZuWHImMrWXCoWswT0BpYYSZ_ZNvvtMQw/exec";
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxImgrF72ISE6wBuhyafL-q88UWM9vdThrsjhpVXR-Ws2J3d1Sg0Jw4L5Tnkcg9ZXsXzA/exec";
     let fotoBase64Global = "";
+    let latitudGlobal = 0;
+    let longitudGlobal = 0;
 
-    // Activar cámara al cargar
     window.onload = function() {
+      // Activar Cámara
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
         .then(stream => { document.getElementById('webcam').srcObject = stream; })
         .catch(err => alert("Error al acceder a la cámara: " + err));
+
+      // Obatener Ubicación GPS
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            latitudGlobal = pos.coords.latitude;
+            longitudGlobal = pos.coords.longitude;
+          },
+          err => console.log("GPS no permitido o no disponible.")
+        );
+      }
     };
 
-    // Tomar la captura y convertirla a Base64
     function capturarFoto() {
       const video = document.getElementById('webcam');
       const canvas = document.getElementById('canvas');
@@ -74,24 +86,21 @@
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      // Convertir a formato de imagen liviano
       fotoBase64Global = canvas.toDataURL('image/jpeg', 0.6);
       
-      // Mostrar la foto capturada sobre la cámara
       preview.src = fotoBase64Global;
       preview.classList.remove('hidden');
       status.innerText = "✓ Foto capturada correctamente";
       status.className = "text-xs text-emerald-400 text-center font-semibold";
     }
 
-    // Enviar formulario + foto a Apps Script
     function enviarFichada(tipo) {
       const legajo = document.getElementById('legajo').value;
       const nombre = document.getElementById('nombre').value;
       const objetivo = document.getElementById('objetivo').value;
 
       if (!legajo || !nombre || !objetivo) {
-        alert("Por favor complete Legajo, Nombre y Objetivo.");
+        alert("Por favor complete todos los datos.");
         return;
       }
 
@@ -105,14 +114,14 @@
         nombre: nombre,
         objetivo: objetivo,
         tipo: tipo,
-        latitud: 0,
-        longitud: 0,
+        latitud: latitudGlobal,
+        longitud: longitudGlobal,
         fotoBase64: fotoBase64Global
       };
 
       const divResultado = document.getElementById('resultado');
       divResultado.className = "p-3 rounded-xl text-xs text-center bg-slate-700 text-white";
-      divResultado.innerText = "Subiendo datos y foto a Drive...";
+      divResultado.innerText = "Registrando ubicación y datos...";
       divResultado.classList.remove('hidden');
 
       fetch(URL_APPS_SCRIPT, {
@@ -127,7 +136,7 @@
       })
       .catch(err => {
         divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
-        divResultado.innerText = "Error de conexión: " + err;
+        divResultado.innerText = "Error: " + err;
       });
     }
   </script>
