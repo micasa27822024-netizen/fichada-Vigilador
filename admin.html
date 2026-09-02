@@ -247,38 +247,59 @@
       XLSX.writeFile(wb, `Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
-    function exportarPDF() {
-      if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
-        return alert("No hay datos visibles para exportar.");
-      }
+ function exportarPDF() {
+  if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
+    return alert("No hay datos visibles para exportar.");
+  }
 
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('landscape'); // Formato horizontal para mejor ajuste
+  // Crear una ventana limpia para la impresión/guardado en PDF
+  const ventanaImpresion = window.open('', '_blank');
+  
+  const filasHTML = datosFiltradosActuales.map(f => `
+    <tr>
+      <td style="padding: 8px; border: 1px solid #ddd;">${f[0] ? new Date(f[0]).toLocaleString('es-AR') : ''}</td>
+      <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${f[1] || ''}</td>
+      <td style="padding: 8px; border: 1px solid #ddd;">${f[2] || ''}</td>
+      <td style="padding: 8px; border: 1px solid #ddd;">${f[3] || ''}</td>
+      <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${f[4] || ''}</td>
+    </tr>
+  `).join('');
 
-      doc.setFontSize(14);
-      doc.text("Reporte de Control de Asistencia y Marcaciones", 14, 15);
-      doc.setFontSize(9);
-      doc.text(`Generado el: ${new Date().toLocaleString('es-AR')}`, 14, 21);
-
-      const filas = datosFiltradosActuales.map(f => [
-        f[0] ? new Date(f[0]).toLocaleString('es-AR') : '',
-        f[1] || '',
-        f[2] || '',
-        f[3] || '',
-        f[4] || ''
-      ]);
-
-      doc.autoTable({
-        startY: 25,
-        head: [['Fecha y Hora', 'Legajo', 'Nombre', 'Objetivo', 'Tipo']],
-        body: filas,
-        theme: 'grid',
-        headStyles: { fillColor: [15, 23, 42] },
-        styles: { fontSize: 8 }
-      });
-
-      doc.save(`Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.pdf`);
-    }
-  </script>
-</body>
-</html>
+  ventanaImpresion.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Reporte de Marcaciones</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+        h2 { margin-bottom: 5px; color: #0f172a; }
+        p { font-size: 12px; color: #666; margin-top: 0; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background-color: #0f172a; color: white; padding: 10px; border: 1px solid #0f172a; text-align: left; }
+      </style>
+    </head>
+    <body>
+      <h2>Reporte de Control de Asistencia y Marcaciones</h2>
+      <p>Generado el: ${new Date().toLocaleString('es-AR')}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha y Hora</th>
+            <th>Legajo</th>
+            <th>Nombre</th>
+            <th>Objetivo</th>
+            <th>Tipo</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filasHTML}
+        </tbody>
+      </table>
+      <script>
+        window.onload = function() {
+          window.print();
+          window.close();
+        };
+      <\/script>
+    </body>
+    </html>
