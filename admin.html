@@ -7,8 +7,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   
-  <!-- LIBRERÍAS DE EXPORTACIÓN -->
+  <!-- LIBRERÍAS DE EXPORTACIÓN (EXCEL Y PDF DIRECTO) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
 
@@ -110,10 +112,13 @@
 
     function cargarDatos() {
       const icono = document.getElementById('icono-reload');
-      icono.classList.add('fa-spin');
+      if (icono) icono.classList.add('fa-spin');
 
-      fetch(URL_APPS_SCRIPT)
-        .then(res => res.json())
+      fetch(URL_APPS_SCRIPT, { redirect: "follow" })
+        .then(res => {
+          if (!res.ok) throw new Error("Error en la respuesta del servidor");
+          return res.json();
+        })
         .then(data => {
           datosLocales = data;
           filtrarTabla();
@@ -124,12 +129,12 @@
             <tr>
               <td colspan="7" class="p-8 text-center text-rose-400">
                 <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
-                <p>Error al obtener registros. Verifica la conexión.</p>
+                <p>Error al obtener registros. Revisa la conexión.</p>
               </td>
             </tr>`;
         })
         .finally(() => {
-          icono.classList.remove('fa-spin');
+          if (icono) icono.classList.remove('fa-spin');
         });
     }
 
@@ -225,7 +230,7 @@
       document.getElementById('imgModal').src = "";
     }
 
-    // EXPORTAR EXCEL
+    // EXPORTAR A EXCEL
     function exportarExcel() {
       if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
         return alert("No hay datos visibles para exportar.");
@@ -248,65 +253,40 @@
       XLSX.writeFile(wb, `Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
-    // EXPORTAR PDF
+    // EXPORTAR A PDF DIRECTO
     function exportarPDF() {
       if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
         return alert("No hay datos visibles para exportar.");
       }
 
-      const ventanaImpresion = window.open('', '_blank');
-      
-      const filasHTML = datosFiltradosActuales.map(f => `
-        <tr>
-          <td style="padding: 8px; border: 1px solid #ddd;">${f[0] ? new Date(f[0]).toLocaleString('es-AR') : ''}</td>
-          <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${f[1] || ''}</td>
-          <td style="padding: 8px; border: 1px solid #ddd;">${f[2] || ''}</td>
-          <td style="padding: 8px; border: 1px solid #ddd;">${f[3] || ''}</td>
-          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${f[4] || ''}</td>
-        </tr>
-      `).join('');
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
 
-      ventanaImpresion.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Reporte de Marcaciones</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-            h2 { margin-bottom: 5px; color: #0f172a; }
-            p { font-size: 12px; color: #666; margin-top: 0; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th { background-color: #0f172a; color: white; padding: 10px; border: 1px solid #0f172a; text-align: left; }
-          </style>
-        </head>
-        <body>
-          <h2>Reporte de Control de Asistencia y Marcaciones</h2>
-          <p>Generado el: ${new Date().toLocaleString('es-AR')}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha y Hora</th>
-                <th>Legajo</th>
-                <th>Nombre</th>
-                <th>Objetivo</th>
-                <th>Tipo</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filasHTML}
-            </tbody>
-          </table>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            };
-          <\/script>
-        </body>
-        </html>
-      `);
+      doc.setFontSize(16);
+      doc.text("Reporte de Marcaciones de Asistencia", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Generado el: ${new Date().toLocaleString('es-AR')}`, 14, 22);
 
-      ventanaImpresion.document.close();
+      const columnas = ["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo"];
+
+      const filas = datosFiltradosActuales.map(f => [
+        f[0] ? new Date(f[0]).toLocaleString('es-AR') : '',
+        f[1] || '',
+        f[2] || '',
+        f[3] || '',
+        f[4] || ''
+      ]);
+
+      doc.autoTable({
+        head: [columnas],
+        body: filas,
+        startY: 28,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 8 }
+      });
+
+      doc.save(`Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.pdf`);
     }
   </script>
 </body>
