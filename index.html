@@ -3,77 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control de Asistencia</title>
+  <title>VGA 24 - Control de Asistencia</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
 
-  <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-6 space-y-4">
-    <h1 class="text-xl font-bold text-center text-white tracking-wide uppercase">Control de Asistencia</h1>
+  <!-- ENCABEZADO Y MENÚ CORPORATIVO - VGA SECURITY 24 S.A. -->
+  <header class="bg-slate-900 border-b border-slate-800 shadow-md mb-4">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
+      
+      <!-- LOGO Y NOMBRE DE LA EMPRESA -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center text-emerald-400 font-bold text-lg shadow-inner">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <span class="text-[10px] font-extrabold tracking-widest text-emerald-400 uppercase block">VGA Security 24 S.A.</span>
+          <h1 class="text-lg font-bold text-white tracking-wide">Fichadas</h1>
+        </div>
+      </div>
 
-    <!-- LEGAJO Y VALIDACIÓN -->
-    <div>
-      <label class="block text-xs uppercase text-slate-400 mb-1">N° Legajo</label>
-      <div class="relative">
-        <!-- CAMBIADO DE type="number" A type="text" PARA PRESERVAR EL CERO INICIAL -->
-        <input type="text" id="legajo" onblur="validarLegajo()" placeholder="Ingrese su legajo (ej: 0286)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
-        <button type="button" onclick="validarLegajo()" class="absolute right-2 top-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-2 py-1 rounded">
-          <i class="fa-solid fa-magnifying-glass"></i>
+      <!-- MENÚ DE NAVEGACIÓN RÁPIDA -->
+      <nav class="flex flex-wrap justify-center items-center gap-1 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60">
+        <a href="index.html" class="px-3 py-1.5 text-xs font-medium text-white bg-slate-700 rounded-lg transition flex items-center space-x-1.5 shadow-sm">
+          <i class="fa-solid fa-camera-retro text-emerald-400"></i>
+          <span>Fichadas</span>
+        </a>
+        <a href="admin.html" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition flex items-center space-x-1.5">
+          <i class="fa-solid fa-building-shield text-emerald-400"></i>
+          <span>Centro de Operaciones</span>
+        </a>
+        <a href="panel.html" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition flex items-center space-x-1.5">
+          <i class="fa-solid fa-chart-line text-emerald-400"></i>
+          <span>Control en Tiempo Real</span>
+        </a>
+        <a href="mis-horas.html" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition flex items-center space-x-1.5">
+          <i class="fa-solid fa-clock text-emerald-400"></i>
+          <span>Control de Mis Horas</span>
+        </a>
+      </nav>
+
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL DE FICHAJE -->
+  <main class="flex-grow flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-6 space-y-4">
+      <h2 class="text-xl font-bold text-center text-white tracking-wide uppercase">Registro de Asistencia</h2>
+
+      <!-- LEGAJO Y VALIDACIÓN -->
+      <div>
+        <label class="block text-xs uppercase text-slate-400 mb-1">N° Legajo</label>
+        <div class="relative">
+          <input type="text" id="legajo" onblur="validarLegajo()" placeholder="Ingrese su legajo (ej: 0286)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+          <button type="button" onclick="validarLegajo()" class="absolute right-2 top-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-2 py-1 rounded">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </button>
+        </div>
+        <p id="legajo-status" class="text-xs mt-1 hidden"></p>
+      </div>
+
+      <!-- NOMBRE (SE AUTOCOMPLETA) -->
+      <div>
+        <label class="block text-xs uppercase text-slate-400 mb-1">Nombre Completo</label>
+        <input type="text" id="nombre" readonly placeholder="Se autocompletará con su legajo" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-slate-400 cursor-not-allowed">
+      </div>
+
+      <!-- PIN DE SEGURIDAD -->
+      <div>
+        <label class="block text-xs uppercase text-slate-400 mb-1">PIN / Clave de Personal</label>
+        <input type="password" id="pin" maxlength="6" placeholder="****" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <!-- OBJETIVO / PUESTO (DESPLEGABLE DINÁMICO) -->
+      <div>
+        <label class="block text-xs uppercase text-slate-400 mb-1">Objetivo / Puesto</label>
+        <select id="objetivo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+          <option value="">Cargando objetivos...</option>
+        </select>
+      </div>
+
+      <!-- CÁMARA -->
+      <div class="space-y-2">
+        <label class="block text-xs uppercase text-slate-400">Validación Facial</label>
+        <div class="relative w-full h-48 bg-slate-950 rounded-lg overflow-hidden border border-slate-700 flex items-center justify-center">
+          <video id="webcam" autoplay playsinline class="w-full h-full object-cover"></video>
+          <canvas id="canvas" class="hidden"></canvas>
+          <img id="preview" class="w-full h-full object-cover hidden absolute inset-0 border-2 border-emerald-500">
+        </div>
+        <button type="button" onclick="capturarFoto()" class="w-full bg-amber-600 hover:bg-amber-500 text-xs py-2 rounded-lg font-bold transition">
+          <i class="fa-solid fa-camera mr-2"></i>CAPTURAR FOTO
         </button>
+        <p id="foto-status" class="text-xs text-rose-400 text-center font-semibold">⚠️ Foto no capturada</p>
       </div>
-      <p id="legajo-status" class="text-xs mt-1 hidden"></p>
-    </div>
 
-    <!-- NOMBRE (SE AUTOCOMPLETA) -->
-    <div>
-      <label class="block text-xs uppercase text-slate-400 mb-1">Nombre Completo</label>
-      <input type="text" id="nombre" readonly placeholder="Se autocompletará con su legajo" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-slate-400 cursor-not-allowed">
-    </div>
-
-    <!-- PIN DE SEGURIDAD -->
-    <div>
-      <label class="block text-xs uppercase text-slate-400 mb-1">PIN / Clave de Personal</label>
-      <input type="password" id="pin" maxlength="6" placeholder="****" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
-    </div>
-
-    <!-- OBJETIVO / PUESTO (DESPLEGABLE DINÁMICO) -->
-    <div>
-      <label class="block text-xs uppercase text-slate-400 mb-1">Objetivo / Puesto</label>
-      <select id="objetivo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
-        <option value="">Cargando objetivos...</option>
-      </select>
-    </div>
-
-    <!-- CÁMARA -->
-    <div class="space-y-2">
-      <label class="block text-xs uppercase text-slate-400">Validación Facial</label>
-      <div class="relative w-full h-48 bg-slate-950 rounded-lg overflow-hidden border border-slate-700 flex items-center justify-center">
-        <video id="webcam" autoplay playsinline class="w-full h-full object-cover"></video>
-        <canvas id="canvas" class="hidden"></canvas>
-        <img id="preview" class="w-full h-full object-cover hidden absolute inset-0 border-2 border-emerald-500">
+      <!-- BOTONES DE ENVÍO -->
+      <div class="grid grid-cols-2 gap-4 pt-2">
+        <button onclick="procesarEnvio('ENTRADA')" class="bg-emerald-600 hover:bg-emerald-500 font-bold py-3 rounded-xl transition">ENTRADA</button>
+        <button onclick="procesarEnvio('SALIDA')" class="bg-rose-600 hover:bg-rose-500 font-bold py-3 rounded-xl transition">SALIDA</button>
       </div>
-      <button type="button" onclick="capturarFoto()" class="w-full bg-amber-600 hover:bg-amber-500 text-xs py-2 rounded-lg font-bold transition">
-        <i class="fa-solid fa-camera mr-2"></i>CAPTURAR FOTO
-      </button>
-      <p id="foto-status" class="text-xs text-rose-400 text-center font-semibold">⚠️ Foto no capturada</p>
-    </div>
 
-    <!-- BOTONES DE ENVÍO -->
-    <div class="grid grid-cols-2 gap-4 pt-2">
-      <button onclick="procesarEnvio('ENTRADA')" class="bg-emerald-600 hover:bg-emerald-500 font-bold py-3 rounded-xl transition">ENTRADA</button>
-      <button onclick="procesarEnvio('SALIDA')" class="bg-rose-600 hover:bg-rose-500 font-bold py-3 rounded-xl transition">SALIDA</button>
+      <div id="resultado" class="hidden p-3 rounded-xl text-xs text-center"></div>
     </div>
-
-    <div id="resultado" class="hidden p-3 rounded-xl text-xs text-center"></div>
-  </div>
+  </main>
 
   <script>
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyYridm7GmyEbFC6heaMspOC6Atewg3RbRX2EGrhTqMPojX0Y5veGbFgt0X61CWUWincw/exec";
     let fotoBase64Global = "";
 
     window.onload = function() {
-      // Iniciar cámara
+      // Iniciar cámara con HTTPS seguro de GitHub Pages
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
         .then(stream => { document.getElementById('webcam').srcObject = stream; })
         .catch(err => alert("Error al acceder a la cámara: " + err));
