@@ -157,8 +157,13 @@
             <input type="text" id="newNombre" required placeholder="Ej: Juan Pérez" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
           </div>
           <div>
-            <label class="block text-xs uppercase text-slate-400 mb-1">PIN de Seguridad (4-6 dÃ­gitos)</label>
-            <input type="password" id="newPin" required maxlength="6" placeholder="****" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+            <label class="block text-xs uppercase text-slate-400 mb-1">PIN Generado (Automático)</label>
+            <div class="flex gap-2">
+              <input type="text" id="newPin" readonly required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2 text-sm text-amber-400 font-mono font-bold tracking-widest text-center focus:outline-none cursor-not-allowed">
+              <button type="button" onclick="generarPinAleatorio()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-2 rounded-xl text-sm transition" title="Generar otro PIN">
+                <i class="fa-solid fa-arrows-rotate"></i>
+              </button>
+            </div>
           </div>
           <button type="submit" id="btnGuardarGuardia" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 px-4 rounded-xl text-sm transition flex items-center justify-center gap-2">
             <i class="fa-solid fa-floppy-disk"></i> Guardar Personal
@@ -255,10 +260,17 @@
     let datosObjetivos = [];
 
     window.onload = function() {
+      generarPinAleatorio();
       if (sessionStorage.getItem('auth_admin') === 'true') {
         mostrarAdmin();
       }
     };
+
+    function generarPinAleatorio() {
+      const pin = Math.floor(1000 + Math.random() * 9000).toString();
+      const inputPin = document.getElementById('newPin');
+      if (inputPin) inputPin.value = pin;
+    }
 
     function validarPasswordAdmin(e) {
       e.preventDefault();
@@ -444,11 +456,13 @@
       btn.disabled = true;
       btn.innerText = "Guardando...";
 
+      const pinGenerado = document.getElementById('newPin').value;
+
       const payload = {
         accion: "crearVigilador",
         legajo: document.getElementById('newLegajo').value,
         nombre: document.getElementById('newNombre').value,
-        pin: document.getElementById('newPin').value
+        pin: pinGenerado
       };
 
       fetch(URL_APPS_SCRIPT, {
@@ -458,10 +472,10 @@
       })
       .then(res => res.json())
       .then(res => {
-        alert(res.mensaje || "Vigilador registrado con éxito.");
+        alert(`${res.mensaje || "Vigilador registrado con éxito."}\nPIN asignado: ${pinGenerado}`);
         document.getElementById('newLegajo').value = "";
         document.getElementById('newNombre').value = "";
-        document.getElementById('newPin').value = "";
+        generarPinAleatorio();
         recargarDatosEfectivo();
       })
       .finally(() => {
