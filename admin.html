@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel de Control - Marcaciones (Admin)</title>
+  <title>Panel de Control - Administración</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   
@@ -47,7 +47,7 @@
   </div>
 
   <!-- ========================================== -->
-  <!-- CONTENIDO PRINCIPAL DE ADMIN (OCULTO)     -->
+  <!-- CONTENIDO PRINCIPAL DE ADMIN               -->
   <!-- ========================================== -->
   <div id="contenidoAdmin" class="max-w-7xl mx-auto space-y-6 hidden">
     
@@ -55,13 +55,13 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
       <div>
         <h1 class="text-2xl font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-clipboard-user text-emerald-500"></i> Panel de Marcaciones
+          <i class="fa-solid fa-shield-halved text-emerald-500"></i> Panel de Control Operativo
         </h1>
-        <p class="text-xs text-slate-400 mt-1">Supervisión e historial de asistencia en tiempo real</p>
+        <p class="text-xs text-slate-400 mt-1">Gestión de asistencia, personal autorizado y objetivos</p>
       </div>
       
       <div class="flex items-center gap-3">
-        <button onclick="cargarDatos()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg">
+        <button onclick="recargarDatosEfectivo()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg">
           <i class="fa-solid fa-rotate-right" id="icono-reload"></i> Actualizar Datos
         </button>
         <button onclick="cerrarSesionAdmin()" class="bg-slate-700 hover:bg-rose-600 text-slate-300 hover:text-white font-semibold px-3 py-2 rounded-xl text-sm transition border border-slate-600" title="Cerrar Sesión">
@@ -70,53 +70,158 @@
       </div>
     </div>
 
-    <!-- FILTROS, BÚSQUEDA Y EXPORTACIÓN -->
-    <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col md:flex-row gap-4 justify-between items-center">
-      <div class="flex-1 relative w-full">
-        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"></i>
-        <input type="text" id="inputBusqueda" onkeyup="filtrarTabla()" placeholder="Buscar por Nombre, Legajo u Objetivo..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-      </div>
-      
-      <div class="flex flex-wrap md:flex-nowrap items-center gap-3 w-full md:w-auto">
-        <select id="filtroTipo" onchange="filtrarTabla()" class="w-full md:w-auto bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-          <option value="TODOS">Todos los tipos</option>
-          <option value="ENTRADA">Solo Entradas</option>
-          <option value="SALIDA">Solo Salidas</option>
-        </select>
+    <!-- PESTAÑAS DE NAVEGACIÓN -->
+    <div class="flex border-b border-slate-700 gap-2">
+      <button id="tabBtnMarcaciones" onclick="cambiarTab('marcaciones')" class="px-5 py-3 font-semibold text-sm border-b-2 border-emerald-500 text-emerald-400 flex items-center gap-2 transition">
+        <i class="fa-solid fa-clipboard-user"></i> Marcaciones
+      </button>
+      <button id="tabBtnPersonal" onclick="cambiarTab('personal')" class="px-5 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition">
+        <i class="fa-solid fa-id-card"></i> Personal / PINs
+      </button>
+      <button id="tabBtnObjetivos" onclick="cambiarTab('objetivos')" class="px-5 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition">
+        <i class="fa-solid fa-building"></i> Objetivos / Puestos
+      </button>
+    </div>
 
-        <button onclick="exportarExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md w-full md:w-auto">
-          <i class="fa-solid fa-file-excel"></i> Excel
-        </button>
-        <button onclick="exportarPDF()" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md w-full md:w-auto">
-          <i class="fa-solid fa-file-pdf"></i> PDF
-        </button>
+    <!-- ========================================== -->
+    <!-- VISTA 1: MARCACIONES DE ASISTENCIA         -->
+    <!-- ========================================== -->
+    <div id="tabMarcaciones" class="space-y-4">
+      <!-- FILTROS, BÚSQUEDA Y EXPORTACIÓN -->
+      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col md:flex-row gap-4 justify-between items-center">
+        <div class="flex-1 relative w-full">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"></i>
+          <input type="text" id="inputBusqueda" onkeyup="filtrarTablaMarcaciones()" placeholder="Buscar por Nombre, Legajo u Objetivo..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+        </div>
+        
+        <div class="flex flex-wrap md:flex-nowrap items-center gap-3 w-full md:w-auto">
+          <select id="filtroTipo" onchange="filtrarTablaMarcaciones()" class="w-full md:w-auto bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+            <option value="TODOS">Todos los tipos</option>
+            <option value="ENTRADA">Solo Entradas</option>
+            <option value="SALIDA">Solo Salidas</option>
+          </select>
+
+          <button onclick="exportarExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md w-full md:w-auto">
+            <i class="fa-solid fa-file-excel"></i> Excel
+          </button>
+          <button onclick="exportarPDF()" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md w-full md:w-auto">
+            <i class="fa-solid fa-file-pdf"></i> PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- TABLA DE MARCACIONES -->
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-700">
+              <tr>
+                <th class="p-4">Fecha y Hora</th>
+                <th class="p-4">Legajo</th>
+                <th class="p-4">Nombre</th>
+                <th class="p-4">Objetivo</th>
+                <th class="p-4 text-center">Tipo</th>
+                <th class="p-4 text-center">Ubicación</th>
+                <th class="p-4 text-center">Foto</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpoTablaMarcaciones" class="divide-y divide-slate-700/50">
+              <tr>
+                <td colspan="7" class="p-8 text-center text-slate-400">
+                  <i class="fa-solid fa-spinner fa-spin text-2xl text-emerald-500 mb-2"></i>
+                  <p>Cargando información...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- TABLA DE REGISTROS -->
-    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-300">
-          <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-700">
-            <tr>
-              <th class="p-4">Fecha y Hora</th>
-              <th class="p-4">Legajo</th>
-              <th class="p-4">Nombre</th>
-              <th class="p-4">Objetivo</th>
-              <th class="p-4 text-center">Tipo</th>
-              <th class="p-4 text-center">Ubicación</th>
-              <th class="p-4 text-center">Foto</th>
-            </tr>
-          </thead>
-          <tbody id="cuerpoTabla" class="divide-y divide-slate-700/50">
-            <tr>
-              <td colspan="7" class="p-8 text-center text-slate-400">
-                <i class="fa-solid fa-spinner fa-spin text-2xl text-emerald-500 mb-2"></i>
-                <p>Cargando información...</p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <!-- ========================================== -->
+    <!-- VISTA 2: GESTIÓN DE PERSONAL / PINs        -->
+    <!-- ========================================== -->
+    <div id="tabPersonal" class="hidden space-y-6">
+      <!-- FORMULARIO NUEVO PERSONAL -->
+      <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-user-plus text-amber-500"></i> Registrar Nuevo Vigilador
+        </h3>
+        <form onsubmit="guardarVigilador(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div>
+            <label class="block text-xs uppercase text-slate-400 mb-1">N° Legajo</label>
+            <input type="number" id="newLegajo" required placeholder="Ej: 1024" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs uppercase text-slate-400 mb-1">Nombre Completo</label>
+            <input type="text" id="newNombre" required placeholder="Ej: Juan Pérez" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs uppercase text-slate-400 mb-1">PIN de Seguridad (4-6 dÃ­gitos)</label>
+            <input type="password" id="newPin" required maxlength="6" placeholder="****" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+          </div>
+          <button type="submit" id="btnGuardarGuardia" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 px-4 rounded-xl text-sm transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-floppy-disk"></i> Guardar Personal
+          </button>
+        </form>
+      </div>
+
+      <!-- TABLA DE PERSONAL REGISTRADO -->
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-700">
+              <tr>
+                <th class="p-4">Legajo</th>
+                <th class="p-4">Nombre Oficial</th>
+                <th class="p-4 text-center">PIN</th>
+                <th class="p-4 text-center">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpoTablaPersonal" class="divide-y divide-slate-700/50">
+              <tr><td colspan="4" class="p-8 text-center text-slate-400">Cargando personal...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VISTA 3: GESTIÓN DE OBJETIVOS             -->
+    <!-- ========================================== -->
+    <div id="tabObjetivos" class="hidden space-y-6">
+      <!-- FORMULARIO NUEVO OBJETIVO -->
+      <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-building-circle-check text-sky-500"></i> Registrar Nuevo Objetivo / Puesto
+        </h3>
+        <form onsubmit="guardarObjetivo(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div class="md:col-span-2">
+            <label class="block text-xs uppercase text-slate-400 mb-1">Nombre del Objetivo / Servicio</label>
+            <input type="text" id="newObjetivo" required placeholder="Ej: Edificio Central - Turno Noche" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
+          </div>
+          <button type="submit" id="btnGuardarObj" class="bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-xl text-sm transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-plus"></i> Añadir Objetivo
+          </button>
+        </form>
+      </div>
+
+      <!-- TABLA DE OBJETIVOS REGISTRADOS -->
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-700">
+              <tr>
+                <th class="p-4">ID / Código</th>
+                <th class="p-4">Nombre del Objetivo</th>
+                <th class="p-4 text-center">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpoTablaObjetivos" class="divide-y divide-slate-700/50">
+              <tr><td colspan="3" class="p-8 text-center text-slate-400">Cargando objetivos...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -141,10 +246,13 @@
   </div>
 
   <script>
-    // ==========================================
-    // CONFIGURACIÓN DE SEGURIDAD (CONTRASEÑA ADMIN)
-    // ==========================================
-    const PASSWORD_ADMIN = "admin123"; // <-- PUEDES CAMBIAR AQUÍ TU CONTRASEÑA
+    const PASSWORD_ADMIN = "admin123"; 
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzrRRD924v9JIRLjypInemrhhxLKOF2wsYcet3ZyhPBXjyYdH7ytNj1jJYfSNnZmtw8AQ/exec";
+
+    let datosMarcaciones = [];
+    let datosFiltradosMarcaciones = [];
+    let datosPersonal = [];
+    let datosObjetivos = [];
 
     window.onload = function() {
       if (sessionStorage.getItem('auth_admin') === 'true') {
@@ -170,7 +278,7 @@
     function mostrarAdmin() {
       document.getElementById('pantallaLoginAdmin').classList.add('hidden');
       document.getElementById('contenidoAdmin').classList.remove('hidden');
-      cargarDatos();
+      recargarDatosEfectivo();
     }
 
     function cerrarSesionAdmin() {
@@ -178,58 +286,77 @@
       location.reload();
     }
 
-    // ==========================================
-    // LÓGICA DE DATOS Y TABLA
-    // ==========================================
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzrRRD924v9JIRLjypInemrhhxLKOF2wsYcet3ZyhPBXjyYdH7ytNj1jJYfSNnZmtw8AQ/exec";
-    
-    let datosLocales = [];
-    let datosFiltradosActuales = [];
+    function cambiarTab(tab) {
+      document.getElementById('tabMarcaciones').classList.add('hidden');
+      document.getElementById('tabPersonal').classList.add('hidden');
+      document.getElementById('tabObjetivos').classList.add('hidden');
 
-    function cargarDatos() {
+      document.getElementById('tabBtnMarcaciones').className = "px-5 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
+      document.getElementById('tabBtnPersonal').className = "px-5 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
+      document.getElementById('tabBtnObjetivos').className = "px-5 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
+
+      if (tab === 'marcaciones') {
+        document.getElementById('tabMarcaciones').classList.remove('hidden');
+        document.getElementById('tabBtnMarcaciones').className = "px-5 py-3 font-semibold text-sm border-b-2 border-emerald-500 text-emerald-400 flex items-center gap-2 transition";
+      } else if (tab === 'personal') {
+        document.getElementById('tabPersonal').classList.remove('hidden');
+        document.getElementById('tabBtnPersonal').className = "px-5 py-3 font-semibold text-sm border-b-2 border-amber-500 text-amber-400 flex items-center gap-2 transition";
+      } else if (tab === 'objetivos') {
+        document.getElementById('tabObjetivos').classList.remove('hidden');
+        document.getElementById('tabBtnObjetivos').className = "px-5 py-3 font-semibold text-sm border-b-2 border-sky-500 text-sky-400 flex items-center gap-2 transition";
+      }
+    }
+
+    // ==========================================
+    // CARGA GENERAL DE DATOS
+    // ==========================================
+    function recargarDatosEfectivo() {
       const icono = document.getElementById('icono-reload');
       if (icono) icono.classList.add('fa-spin');
 
-      fetch(URL_APPS_SCRIPT, { redirect: "follow" })
-        .then(res => {
-          if (!res.ok) throw new Error("Error en la respuesta del servidor");
-          return res.json();
-        })
+      // Cargar Marcaciones
+      fetch(URL_APPS_SCRIPT)
+        .then(res => res.json())
         .then(data => {
-          datosLocales = data;
-          filtrarTabla();
-        })
-        .catch(err => {
-          console.error(err);
-          document.getElementById('cuerpoTabla').innerHTML = `
-            <tr>
-              <td colspan="7" class="p-8 text-center text-rose-400">
-                <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
-                <p>Error al obtener registros. Revisa la conexión.</p>
-              </td>
-            </tr>`;
+          datosMarcaciones = data;
+          filtrarTablaMarcaciones();
+        });
+
+      // Cargar Personal
+      fetch(`${URL_APPS_SCRIPT}?tipo=personal`)
+        .then(res => res.json())
+        .then(data => {
+          datosPersonal = data;
+          renderizarTablaPersonal(data);
+        });
+
+      // Cargar Objetivos
+      fetch(`${URL_APPS_SCRIPT}?tipo=objetivos`)
+        .then(res => res.json())
+        .then(data => {
+          datosObjetivos = data;
+          renderizarTablaObjetivos(data);
         })
         .finally(() => {
           if (icono) icono.classList.remove('fa-spin');
         });
     }
 
-    function renderizarTabla(registros) {
-      const cuerpo = document.getElementById('cuerpoTabla');
+    // ==========================================
+    // TABLA 1: MARCACIONES
+    // ==========================================
+    function renderizarTablaMarcaciones(registros) {
+      const cuerpo = document.getElementById('cuerpoTablaMarcaciones');
       cuerpo.innerHTML = "";
 
       if (!registros || registros.length === 0) {
-        cuerpo.innerHTML = `
-          <tr>
-            <td colspan="7" class="p-8 text-center text-slate-400">No hay registros cargados aún.</td>
-          </tr>`;
+        cuerpo.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400">No hay registros cargados aún.</td></tr>`;
         return;
       }
 
       const ordenados = [...registros].reverse();
 
       ordenados.forEach(fila => {
-        // Formato 24 horas forzado mediante { hour12: false }
         const fecha = fila[0] ? new Date(fila[0]).toLocaleString('es-AR', { hour12: false }) : '-';
         const legajo = fila[1] || '-';
         const nombre = fila[2] || '-';
@@ -271,11 +398,11 @@
       });
     }
 
-    function filtrarTabla() {
+    function filtrarTablaMarcaciones() {
       const busqueda = document.getElementById('inputBusqueda').value.toLowerCase();
       const filtroTipo = document.getElementById('filtroTipo').value;
 
-      datosFiltradosActuales = datosLocales.filter(fila => {
+      datosFiltradosMarcaciones = datosMarcaciones.filter(fila => {
         const textoFila = `${fila[1]} ${fila[2]} ${fila[3]}`.toLowerCase();
         const coincideBusqueda = textoFila.includes(busqueda);
         const coincideTipo = (filtroTipo === 'TODOS') || (fila[4] === filtroTipo);
@@ -283,9 +410,121 @@
         return coincideBusqueda && coincideTipo;
       });
 
-      renderizarTabla(datosFiltradosActuales);
+      renderizarTablaMarcaciones(datosFiltradosMarcaciones);
     }
 
+    // ==========================================
+    // TABLA 2: PERSONAL
+    // ==========================================
+    function renderizarTablaPersonal(registros) {
+      const cuerpo = document.getElementById('cuerpoTablaPersonal');
+      cuerpo.innerHTML = "";
+
+      if (!registros || registros.length === 0) {
+        cuerpo.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400">No hay personal registrado.</td></tr>`;
+        return;
+      }
+
+      registros.forEach(fila => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-700/30 transition";
+        tr.innerHTML = `
+          <td class="p-4 font-bold text-amber-400">${fila[0]}</td>
+          <td class="p-4 font-medium text-white">${fila[1]}</td>
+          <td class="p-4 text-center font-mono text-slate-400">****</td>
+          <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">Activo</span></td>
+        `;
+        cuerpo.appendChild(tr);
+      });
+    }
+
+    function guardarVigilador(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnGuardarGuardia');
+      btn.disabled = true;
+      btn.innerText = "Guardando...";
+
+      const payload = {
+        accion: "crearVigilador",
+        legajo: document.getElementById('newLegajo').value,
+        nombre: document.getElementById('newNombre').value,
+        pin: document.getElementById('newPin').value
+      };
+
+      fetch(URL_APPS_SCRIPT, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(res => {
+        alert(res.mensaje || "Vigilador registrado con éxito.");
+        document.getElementById('newLegajo').value = "";
+        document.getElementById('newNombre').value = "";
+        document.getElementById('newPin').value = "";
+        recargarDatosEfectivo();
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Guardar Personal`;
+      });
+    }
+
+    // ==========================================
+    // TABLA 3: OBJETIVOS
+    // ==========================================
+    function renderizarTablaObjetivos(registros) {
+      const cuerpo = document.getElementById('cuerpoTablaObjetivos');
+      cuerpo.innerHTML = "";
+
+      if (!registros || registros.length === 0) {
+        cuerpo.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-slate-400">No hay objetivos registrados.</td></tr>`;
+        return;
+      }
+
+      registros.forEach(fila => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-700/30 transition";
+        tr.innerHTML = `
+          <td class="p-4 font-mono text-xs text-slate-400">${fila[0] || 'OBJ'}</td>
+          <td class="p-4 font-medium text-white">${fila[1] || fila[0]}</td>
+          <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">Activo</span></td>
+        `;
+        cuerpo.appendChild(tr);
+      });
+    }
+
+    function guardarObjetivo(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnGuardarObj');
+      btn.disabled = true;
+      btn.innerText = "Guardando...";
+
+      const payload = {
+        accion: "crearObjetivo",
+        nombreObjetivo: document.getElementById('newObjetivo').value
+      };
+
+      fetch(URL_APPS_SCRIPT, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(res => {
+        alert(res.mensaje || "Objetivo registrado con éxito.");
+        document.getElementById('newObjetivo').value = "";
+        recargarDatosEfectivo();
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-plus"></i> Añadir Objetivo`;
+      });
+    }
+
+    // ==========================================
+    // UTILIDADES DE MODAL Y EXPORTACIÓN
+    // ==========================================
     function obtenerUrlDirectaFoto(url) {
       if (!url) return '';
       const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
@@ -307,14 +546,13 @@
       document.getElementById('imgModal').src = "";
     }
 
-    // EXPORTAR A EXCEL
     function exportarExcel() {
-      if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
+      if (!datosFiltradosMarcaciones || datosFiltradosMarcaciones.length === 0) {
         return alert("No hay datos visibles para exportar.");
       }
 
       const cabeceras = [["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo", "Ubicación (Mapa)", "Foto URL"]];
-      const filas = datosFiltradosActuales.map(f => [
+      const filas = datosFiltradosMarcaciones.map(f => [
         f[0] ? new Date(f[0]).toLocaleString('es-AR', { hour12: false }) : '',
         f[1] || '',
         f[2] || '',
@@ -330,9 +568,8 @@
       XLSX.writeFile(wb, `Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
-    // EXPORTAR A PDF DIRECTO
     function exportarPDF() {
-      if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
+      if (!datosFiltradosMarcaciones || datosFiltradosMarcaciones.length === 0) {
         return alert("No hay datos visibles para exportar.");
       }
 
@@ -345,8 +582,7 @@
       doc.text(`Generado el: ${new Date().toLocaleString('es-AR', { hour12: false })}`, 14, 22);
 
       const columnas = ["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo"];
-
-      const filas = datosFiltradosActuales.map(f => [
+      const filas = datosFiltradosMarcaciones.map(f => [
         f[0] ? new Date(f[0]).toLocaleString('es-AR', { hour12: false }) : '',
         f[1] || '',
         f[2] || '',
