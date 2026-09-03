@@ -16,7 +16,8 @@
     <div>
       <label class="block text-xs uppercase text-slate-400 mb-1">N° Legajo</label>
       <div class="relative">
-        <input type="number" id="legajo" onblur="validarLegajo()" placeholder="Ingrese su legajo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+        <!-- CAMBIADO DE type="number" A type="text" PARA PRESERVAR EL CERO INICIAL -->
+        <input type="text" id="legajo" onblur="validarLegajo()" placeholder="Ingrese su legajo (ej: 0286)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
         <button type="button" onclick="validarLegajo()" class="absolute right-2 top-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-2 py-1 rounded">
           <i class="fa-solid fa-magnifying-glass"></i>
         </button>
@@ -89,7 +90,6 @@
           selectObj.innerHTML = '<option value="">Seleccione un Objetivo</option>';
           if (Array.isArray(data) && data.length > 0) {
             data.forEach(item => {
-              // Si la fila tiene nombre de objetivo (Columna B / Índice 1)
               const nombreObj = item[1] || item[0];
               if (nombreObj) {
                 const opt = document.createElement('option');
@@ -116,7 +116,7 @@
       statusLbl.className = "text-xs mt-1 text-amber-400 block";
       statusLbl.innerText = "Buscando legajo...";
 
-      fetch(`${URL_APPS_SCRIPT}?tipo=validarVigilador&legajo=${legajo}`)
+      fetch(`${URL_APPS_SCRIPT}?tipo=validarVigilador&legajo=${encodeURIComponent(legajo)}`)
         .then(res => res.json())
         .then(data => {
           if (data.existe) {
@@ -228,7 +228,6 @@
         if (res.exito) {
           divResultado.className = "p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-200 border border-emerald-500";
           divResultado.innerText = `✓ Fichada de ${tipo} registrada exitosamente.`;
-          // Limpiar campo de PIN tras fichar
           document.getElementById('pin').value = "";
         } else {
           divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
