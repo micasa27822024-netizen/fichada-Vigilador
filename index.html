@@ -10,21 +10,38 @@
 <body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
 
   <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-6 space-y-4">
-    <h1 class="text-xl font-bold text-center text-white">CONTROL DE ASISTENCIA</h1>
+    <h1 class="text-xl font-bold text-center text-white tracking-wide uppercase">Control de Asistencia</h1>
 
+    <!-- LEGAJO Y VALIDACIÓN -->
     <div>
-      <label class="block text-xs uppercase text-slate-400 mb-1">N° Legajo / DNI</label>
-      <input type="number" id="legajo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
+      <label class="block text-xs uppercase text-slate-400 mb-1">N° Legajo</label>
+      <div class="relative">
+        <input type="number" id="legajo" onblur="validarLegajo()" placeholder="Ingrese su legajo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+        <button type="button" onclick="validarLegajo()" class="absolute right-2 top-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-2 py-1 rounded">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
+      </div>
+      <p id="legajo-status" class="text-xs mt-1 hidden"></p>
     </div>
 
+    <!-- NOMBRE (SE AUTOCOMPLETA) -->
     <div>
       <label class="block text-xs uppercase text-slate-400 mb-1">Nombre Completo</label>
-      <input type="text" id="nombre" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
+      <input type="text" id="nombre" readonly placeholder="Se autocompletará con su legajo" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-slate-400 cursor-not-allowed">
     </div>
 
+    <!-- PIN DE SEGURIDAD -->
+    <div>
+      <label class="block text-xs uppercase text-slate-400 mb-1">PIN / Clave de Personal</label>
+      <input type="password" id="pin" maxlength="6" placeholder="****" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+    </div>
+
+    <!-- OBJETIVO / PUESTO (DESPLEGABLE DINÁMICO) -->
     <div>
       <label class="block text-xs uppercase text-slate-400 mb-1">Objetivo / Puesto</label>
-      <input type="text" id="objetivo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
+      <select id="objetivo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+        <option value="">Cargando objetivos...</option>
+      </select>
     </div>
 
     <!-- CÁMARA -->
@@ -51,15 +68,72 @@
   </div>
 
   <script>
-    // Coloca tu URL completa de Apps Script aquí
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzrRRD924v9JIRLjypInemrhhxLKOF2wsYcet3ZyhPBXjyYdH7ytNj1jJYfSNnZmtw8AQ/exec";
     let fotoBase64Global = "";
 
     window.onload = function() {
+      // Iniciar cámara
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
         .then(stream => { document.getElementById('webcam').srcObject = stream; })
         .catch(err => alert("Error al acceder a la cámara: " + err));
+
+      // Cargar lista de objetivos
+      cargarObjetivos();
     };
+
+    function cargarObjetivos() {
+      fetch(`${URL_APPS_SCRIPT}?tipo=objetivos`)
+        .then(res => res.json())
+        .then(data => {
+          const selectObj = document.getElementById('objetivo');
+          selectObj.innerHTML = '<option value="">Seleccione un Objetivo</option>';
+          if (Array.isArray(data) && data.length > 0) {
+            data.forEach(item => {
+              // Si la fila tiene nombre de objetivo (Columna B / Índice 1)
+              const nombreObj = item[1] || item[0];
+              if (nombreObj) {
+                const opt = document.createElement('option');
+                opt.value = nombreObj;
+                opt.textContent = nombreObj;
+                selectObj.appendChild(opt);
+              }
+            });
+          } else {
+            selectObj.innerHTML = '<option value="Puesto General">Puesto General</option>';
+          }
+        })
+        .catch(() => {
+          document.getElementById('objetivo').innerHTML = '<option value="Puesto General">Puesto General</option>';
+        });
+    }
+
+    function validarLegajo() {
+      const legajo = document.getElementById('legajo').value.trim();
+      const statusLbl = document.getElementById('legajo-status');
+      
+      if (!legajo) return;
+
+      statusLbl.className = "text-xs mt-1 text-amber-400 block";
+      statusLbl.innerText = "Buscando legajo...";
+
+      fetch(`${URL_APPS_SCRIPT}?tipo=validarVigilador&legajo=${legajo}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.existe) {
+            document.getElementById('nombre').value = data.nombreOficial || "";
+            statusLbl.className = "text-xs mt-1 text-emerald-400 block";
+            statusLbl.innerText = `✓ Guardia: ${data.nombreOficial || 'Legajo Encontrado'}`;
+          } else {
+            document.getElementById('nombre').value = "";
+            statusLbl.className = "text-xs mt-1 text-rose-400 block";
+            statusLbl.innerText = data.mensaje || "❌ Legajo no encontrado.";
+          }
+        })
+        .catch(() => {
+          statusLbl.className = "text-xs mt-1 text-slate-400 block";
+          statusLbl.innerText = "Modo de verificación manual habilitado.";
+        });
+    }
 
     function capturarFoto() {
       const video = document.getElementById('webcam');
@@ -82,12 +156,13 @@
     }
 
     function procesarEnvio(tipo) {
-      const legajo = document.getElementById('legajo').value;
-      const nombre = document.getElementById('nombre').value;
+      const legajo = document.getElementById('legajo').value.trim();
+      const pin = document.getElementById('pin').value.trim();
+      const nombre = document.getElementById('nombre').value.trim();
       const objetivo = document.getElementById('objetivo').value;
 
-      if (!legajo || !nombre || !objetivo) {
-        alert("Por favor complete todos los datos.");
+      if (!legajo || !pin || !objetivo) {
+        alert("Por favor complete su N° de Legajo, PIN de Seguridad y seleccione un Objetivo.");
         return;
       }
 
@@ -101,7 +176,6 @@
       divResultado.innerText = "Obteniendo ubicación GPS...";
       divResultado.classList.remove('hidden');
 
-      // Validar si el navegador soporta Geolocation
       if (!navigator.geolocation) {
         divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
         divResultado.innerText = "❌ El dispositivo/navegador no soporta localización GPS.";
@@ -119,7 +193,7 @@
             return;
           }
 
-          enviarFichada(tipo, lat, lng);
+          enviarFichada(tipo, lat, lng, legajo, pin, nombre, objetivo);
         },
         err => {
           divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
@@ -129,11 +203,12 @@
       );
     }
 
-    function enviarFichada(tipo, lat, lng) {
+    function enviarFichada(tipo, lat, lng, legajo, pin, nombre, objetivo) {
       const datos = {
-        legajo: document.getElementById('legajo').value,
-        nombre: document.getElementById('nombre').value,
-        objetivo: document.getElementById('objetivo').value,
+        legajo: legajo,
+        pin: pin,
+        nombre: nombre,
+        objetivo: objetivo,
         tipo: tipo,
         latitud: lat,
         longitud: lng,
@@ -141,17 +216,24 @@
       };
 
       const divResultado = document.getElementById('resultado');
-      divResultado.innerText = "Registrando datos y enviando foto...";
+      divResultado.innerText = "Validando PIN y registrando fichada...";
 
       fetch(URL_APPS_SCRIPT, {
         method: "POST",
-        mode: "no-cors",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(datos)
       })
-      .then(() => {
-        divResultado.className = "p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-200 border border-emerald-500";
-        divResultado.innerText = `✓ Fichada de ${tipo} registrada exitosamente.`;
+      .then(res => res.json())
+      .then(res => {
+        if (res.exito) {
+          divResultado.className = "p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-200 border border-emerald-500";
+          divResultado.innerText = `✓ Fichada de ${tipo} registrada exitosamente.`;
+          // Limpiar campo de PIN tras fichar
+          document.getElementById('pin').value = "";
+        } else {
+          divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
+          divResultado.innerText = "❌ " + (res.mensaje || "Error al procesar la fichada.");
+        }
       })
       .catch(err => {
         divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
