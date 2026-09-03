@@ -1,135 +1,9 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VGA 24 - Mi Historial de Horas y Marcaciones</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
-
-  <!-- ========================================== -->
-  <!-- ENCABEZADO Y MENÚ CORPORATIVO - VGA 24     -->
-  <!-- ========================================== -->
-  <header class="bg-slate-900 border-b border-slate-800 shadow-md">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
-      
-      <!-- LOGO Y NOMBRE DE LA EMPRESA -->
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 bg-slate-800 border border-emerald-500/30 rounded-xl flex items-center justify-center overflow-hidden shadow-inner p-1">
-          <img src="https://i.ibb.co/qYcVxcTH/Chat-GPT-Image-3-sept-2026-13-19-18.png" alt="Logo VGA Security" class="w-full h-full object-contain">
-        </div>
-        <div>
-          <span class="text-[10px] font-extrabold tracking-widest text-emerald-400 uppercase block">VGA Security 24 S.A.</span>
-          <h1 class="text-lg font-bold text-white tracking-wide">Portal del Vigilador</h1>
-        </div>
-      </div>
-
-      <!-- MENÚ DE NAVEGACIÓN RÁPIDA -->
-      <nav class="flex flex-wrap justify-center items-center gap-1 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60">
-        <a href="index.html" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition flex items-center space-x-1.5">
-          <i class="fa-solid fa-camera-retro text-emerald-400"></i>
-          <span>Fichadas</span>
-        </a>
-        <a href="admin.html" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition flex items-center space-x-1.5">
-          <i class="fa-solid fa-building-shield text-emerald-400"></i>
-          <span>Centro de Operaciones</span>
-        </a>
-        <a href="panel.html" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition flex items-center space-x-1.5">
-          <i class="fa-solid fa-chart-line text-emerald-400"></i>
-          <span>Control en Tiempo Real</span>
-        </a>
-        <a href="mis-horas.html" class="px-3 py-1.5 text-xs font-medium text-white bg-slate-700 rounded-lg transition flex items-center space-x-1.5 shadow-sm">
-          <i class="fa-solid fa-clock text-emerald-400"></i>
-          <span>Control de Mis Horas</span>
-        </a>
-      </nav>
-
-    </div>
-  </header>
-
-  <!-- CONTENIDO PRINCIPAL -->
-  <main class="max-w-4xl mx-auto space-y-6 p-4 md:p-8 flex-grow w-full">
-    
-    <!-- CONSULTA DE LEGAJO Y PIN -->
-    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
-      <div class="flex justify-between items-center">
-        <h2 class="text-xl font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-user-clock text-emerald-500"></i> Mi Consulta de Horas
-        </h2>
-        <button id="btnCerrarSesion" onclick="cerrarSesionVigilador()" class="hidden text-xs text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg transition">
-          <i class="fa-solid fa-right-from-bracket"></i> Salir de mi cuenta
-        </button>
-      </div>
-
-      <!-- Formulario de Login -->
-      <div id="formLoginVigilador" class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div class="relative">
-          <i class="fa-solid fa-id-badge absolute left-3 top-3 text-slate-400 text-sm"></i>
-          <input type="text" id="legajoInput" placeholder="Número de Legajo..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-        </div>
-        <div class="relative">
-          <i class="fa-solid fa-key absolute left-3 top-3 text-slate-400 text-sm"></i>
-          <input type="password" id="pinInput" placeholder="PIN de seguridad..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-        </div>
-        <button onclick="buscarMisHoras()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg">
-          <i class="fa-solid fa-lock-open"></i> Verificar e Ingresar
-        </button>
-      </div>
-
-      <!-- Indicador de Sesión Activa -->
-      <div id="infoSesionActiva" class="hidden flex items-center justify-between bg-slate-900/60 border border-emerald-500/30 px-4 py-2.5 rounded-xl text-xs">
-        <span class="text-emerald-400 font-medium flex items-center gap-2">
-          <i class="fa-solid fa-circle-check"></i> Sesión activa para el Legajo: <strong id="lblLegajoActivo" class="text-white"></strong>
-        </span>
-        <span class="text-slate-400"><i class="fa-solid fa-shield-halved text-emerald-400"></i> Bloqueo por inactividad activo (3 min)</span>
-      </div>
-    </div>
-
-    <!-- TARJETAS DE RESUMEN -->
-    <div id="resumenHoras" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
-        <p class="text-xs text-slate-400 font-semibold">HORAS DIURNAS (06-21hs)</p>
-        <p id="horasDiurnas" class="text-2xl font-bold text-amber-400 mt-1">0.00 hs</p>
-      </div>
-      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
-        <p class="text-xs text-slate-400 font-semibold">HORAS NOCTURNAS (21-06hs)</p>
-        <p id="horasNocturnas" class="text-2xl font-bold text-indigo-400 mt-1">0.00 hs</p>
-      </div>
-      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
-        <p class="text-xs text-slate-400 font-semibold">TOTAL TRABAJADO</p>
-        <p id="horasTotales" class="text-2xl font-bold text-emerald-400 mt-1">0.00 hs</p>
-      </div>
-    </div>
-
-    <!-- TABLA DE DETALLE DE TURNOS -->
-    <div id="contenedorTabla" class="hidden bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-300">
-          <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-700">
-            <tr>
-              <th class="p-4">Entrada</th>
-              <th class="p-4">Salida</th>
-              <th class="p-4">Objetivo</th>
-              <th class="p-4 text-center">Diurnas</th>
-              <th class="p-4 text-center">Nocturnas</th>
-              <th class="p-4 text-center">Total</th>
-            </tr>
-          </thead>
-          <tbody id="cuerpoDetalle" class="divide-y divide-slate-700/50"></tbody>
-        </table>
-      </div>
-    </div>
-
-  </main>
-
-  <script>
+<script>
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyYridm7GmyEbFC6heaMspOC6Atewg3RbRX2EGrhTqMPojX0Y5veGbFgt0X61CWUWincw/exec";
 
     let temporizadorInactividad;
 
-    // Función para reiniciar el contador de inactividad cada vez que el usuario mueve el mouse, hace clic o escribe
+    // Función para reiniciar el contador de inactividad
     function reiniciarTemporizador() {
       clearTimeout(temporizadorInactividad);
       // 180000 milisegundos = exactamente 3 minutos
@@ -137,6 +11,7 @@
         if (sessionStorage.getItem('vigilador_legajo')) {
           console.log("Cerrando sesión por inactividad de 3 minutos...");
           cerrarSesionVigilador();
+          alert("Sesión cerrada automáticamente por 3 minutos de inactividad.");
         }
       }, 180000); 
     }
@@ -163,7 +38,7 @@
       window.addEventListener('mousemove', reiniciarTemporizador);
       window.addEventListener('mousedown', reiniciarTemporizador);
       window.addEventListener('keypress', reiniciarTemporizador);
-      window.addEventListener('touchstart', reiniciarTemporizador); // Soporte para pantallas táctiles (tablets/celulares)
+      window.addEventListener('touchstart', reiniciarTemporizador); // Soporte para celulares/tablets
     }
 
     function calcularHoras(f1, f2) {
@@ -201,7 +76,7 @@
             return;
           }
 
-          // Guardamos sesión segura en el navegador del dispositivo
+          // Guardamos sesión segura en el navegador
           sessionStorage.setItem('vigilador_legajo', legajo);
 
           document.getElementById('formLoginVigilador').classList.add('hidden');
@@ -211,7 +86,7 @@
 
           procesarYRenderizar(marcacionesVigilador);
           
-          // Activar monitoreo y temporizador al iniciar sesión exitosamente
+          // Activar monitoreo y temporizador
           activarEscuchasInactividad();
           reiniciarTemporizador();
         })
@@ -278,9 +153,16 @@
       // Limpiar temporizador y memoria de sesión
       clearTimeout(temporizadorInactividad);
       sessionStorage.removeItem('vigilador_legajo');
-      // Recargar la página limpia al estado de Login
-      location.reload();
+      
+      // Ocultar elementos de datos y volver a mostrar el login limpio
+      document.getElementById('formLoginVigilador').classList.remove('hidden');
+      document.getElementById('infoSesionActiva').classList.add('hidden');
+      document.getElementById('btnCerrarSesion').classList.add('hidden');
+      document.getElementById('resumenHoras').classList.add('hidden');
+      document.getElementById('contenedorTabla').classList.add('hidden');
+      
+      // Limpiar campos de texto del login
+      document.getElementById('legajoInput').value = '';
+      document.getElementById('pinInput').value = '';
     }
   </script>
-</body>
-</html>
