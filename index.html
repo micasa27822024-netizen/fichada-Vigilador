@@ -50,7 +50,11 @@
   <!-- CONTENEDOR PRINCIPAL DE FICHAJE -->
   <main class="flex-grow flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-6 space-y-4">
-      <h2 class="text-xl font-bold text-center text-white tracking-wide uppercase">Registro de Asistencia</h2>
+      <div class="flex justify-between items-center">
+        <h2 class="text-xl font-bold text-white tracking-wide uppercase">Registro de Asistencia</h2>
+        <!-- INDICADOR DE RED OFFLINE/ONLINE -->
+        <span id="estadoRed" class="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-500/30">🟢 Online</span>
+      </div>
 
       <!-- LEGAJO Y VALIDACIÓN -->
       <div>
@@ -120,7 +124,29 @@
 
       // Cargar lista de objetivos
       cargarObjetivos();
+
+      // Verificar estado de la red al iniciar
+      actualizarEstadoRed();
     };
+
+    // Monitorear cambios de conectividad en tiempo real
+    window.addEventListener('online', () => {
+      actualizarEstadoRed();
+      sincronizarFichadasPendientes();
+    });
+    window.addEventListener('offline', actualizarEstadoRed);
+
+    function actualizarEstadoRed() {
+      const indicador = document.getElementById('estadoRed');
+      if (!indicador) return;
+      if (navigator.onLine) {
+        indicador.className = "text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-500/30";
+        indicador.innerText = "🟢 Online";
+      } else {
+        indicador.className = "text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-500/30";
+        indicador.innerText = "⚠️ Modo Offline";
+      }
+    }
 
     function cargarObjetivos() {
       fetch(`${URL_APPS_SCRIPT}?tipo=objetivos`)
@@ -244,7 +270,6 @@
     }
 
     function ejecutarPeticionFichada(tipo, lat, lng, legajo, pin, nombre, objetivo) {
-      // Bloquear los botones de envío para evitar doble clic
       const botonesEnvio = document.querySelectorAll("main .grid button");
       botonesEnvio.forEach(btn => {
         btn.disabled = true;
@@ -259,10 +284,19 @@
         tipo: tipo,
         latitud: lat,
         longitud: lng,
-        fotoBase64: fotoBase64Global
+        fotoBase64: fotoBase64Global,
+        fechaHoraDispositivo: new Date().toISOString()
       };
 
       const divResultado = document.getElementById('resultado');
+
+      // VERIFICAR SI HAY CONEXIÓN ANTES DE ENVIAR
+      if (!navigator.onLine) {
+        guardarFichadaLocalmente(datos, tipo);
+        restaurarBotones();
+        return;
+      }
+
       divResultado.innerText = "Validando PIN y registrando fichada...";
 
       fetch(URL_APPS_SCRIPT, {
@@ -276,7 +310,6 @@
           divResultado.className = "p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-200 border border-emerald-500";
           divResultado.innerText = `✓ Fichada de ${tipo} registrada exitosamente.`;
           document.getElementById('pin').value = "";
-          // Recargar la pantalla a los 2 segundos para el siguiente vigilador
           setTimeout(() => { location.reload(); }, 2000);
         } else {
           divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
@@ -285,10 +318,58 @@
         }
       })
       .catch(err => {
-        divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
-        divResultado.innerText = "Error de envío: " + err;
+        // Si hay un error de red repentino durante el fetch, se guarda localmente de respaldo
+        guardarFichadaLocalmente(datos, tipo);
         restaurarBotones();
       });
+    }
+
+    function guardarFichadaLocalmente(datos, tipo) {
+      let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
+      pendientes.push(datos);
+      localStorage.setItem('fichadasPendientes', JSON.stringify(pendientes));
+
+      const divResultado = document.getElementById('resultado');
+      divResultado.className = "p-3 rounded-xl text-xs text-center bg-amber-950 text-amber-200 border border-amber-500";
+      divResultado.innerText = `⚠️ Sin conexión. Fichada de ${tipo} guardada localmente. Se enviará al recuperar señal.`;
+      
+      document.getElementById('pin').value = "";
+      setTimeout(() => { location.reload(); }, 3000);
+    }
+
+    function sincronizarFichadasPendientes() {
+      let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
+      if (pendientes.length === 0) return;
+
+      console.log("Sincronizando fichadas pendientes offline...");
+      let fichadasRestantes = [];
+
+      let procesarSiguiente = (index) => {
+        if (index >= pendientes.length) {
+          localStorage.setItem('fichadasPendientes', JSON.stringify(fichadasRestantes));
+          return;
+        }
+
+        let datos = pendientes[index];
+        fetch(URL_APPS_SCRIPT, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify(datos)
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.exito) {
+            fichadasRestantes.push(datos); // Si el servidor la rechazó por PIN o datos, queda retenida
+          }
+          procesarSiguiente(index + 1);
+        })
+        .catch(() => {
+          fichadasRestantes.push(datos); // Si vuelve a fallar la red, se reintenta luego
+          procesarSiguiente(index + 1);
+        });
+      };
+
+      procesarSiguiente(0);
     }
 
     function restaurarBotones() {
