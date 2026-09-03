@@ -17,7 +17,42 @@
 </head> 
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
 
-  <div class="max-w-7xl mx-auto space-y-6">
+  <!-- ========================================== -->
+  <!-- MODAL / PANTALLA DE ACCESO CON CONTRASENA  -->
+  <!-- ========================================== -->
+  <div id="pantallaLogin" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 border border-slate-700 p-6 md:p-8 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-6">
+      
+      <div class="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto text-2xl">
+        <i class="fa-solid fa-user-shield"></i>
+      </div>
+
+      <div>
+        <h2 class="text-xl font-bold text-white">Acceso Supervisor</h2>
+        <p class="text-xs text-slate-400 mt-1">Ingresa la contraseña para acceder al panel de control</p>
+      </div>
+
+      <form onsubmit="validarPassword(event)" class="space-y-4">
+        <div class="relative">
+          <i class="fa-solid fa-lock absolute left-3 top-3.5 text-slate-400 text-sm"></i>
+          <input type="password" id="inputPass" placeholder="Contraseña de acceso" required class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 text-center tracking-widest text-lg">
+        </div>
+
+        <p id="msgErrorPass" class="text-xs text-rose-400 hidden flex items-center justify-center gap-1">
+          <i class="fa-solid fa-circle-exclamation"></i> Contraseña incorrecta. Intenta nuevamente.
+        </p>
+
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2">
+          <i class="fa-solid fa-key"></i> Ingresar al Panel
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- CONTENIDO PRINCIPAL DEL DASHBOARD (OCULTO) -->
+  <!-- ========================================== -->
+  <div id="contenidoPanel" class="max-w-7xl mx-auto space-y-6 hidden">
     
     <!-- ENCABEZADO -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
@@ -28,9 +63,14 @@
         <p class="text-xs text-slate-400 mt-1">Supervisión, KPIs e historial de asistencia en tiempo real</p>
       </div>
       
-      <button onclick="cargarDatos()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg">
-        <i class="fa-solid fa-rotate-right" id="icono-reload"></i> Actualizar Datos
-      </button>
+      <div class="flex items-center gap-3">
+        <button onclick="cargarDatos()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg">
+          <i class="fa-solid fa-rotate-right" id="icono-reload"></i> Actualizar
+        </button>
+        <button onclick="cerrarSesion()" class="bg-slate-700 hover:bg-rose-600 text-slate-300 hover:text-white font-semibold px-3 py-2 rounded-xl text-sm transition border border-slate-600" title="Cerrar Sesión">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
     </div>
 
     <!-- SECCIÓN DE KPIS (TARJETAS INDICADORAS) -->
@@ -199,18 +239,54 @@
   </div>
 
   <script>
+    // ==========================================
+    // CONFIGURACIÓN DE SEGURIDAD (CONTRASENA)
+    // ==========================================
+    const PASSWORD_SUPERVISOR = "admin123"; // <-- CAMBIA AQUÍ TU CONTRASEÑA
+
+    window.onload = function() {
+      // Verificar si ya inició sesión anteriormente en esta pestaña
+      if (sessionStorage.getItem('auth_supervisor') === 'true') {
+        mostrarPanel();
+      }
+    };
+
+    function validarPassword(e) {
+      e.preventDefault();
+      const input = document.getElementById('inputPass').value;
+      const errorMsg = document.getElementById('msgErrorPass');
+
+      if (input === PASSWORD_SUPERVISOR) {
+        sessionStorage.setItem('auth_supervisor', 'true');
+        mostrarPanel();
+      } else {
+        errorMsg.classList.remove('hidden');
+        document.getElementById('inputPass').value = '';
+        document.getElementById('inputPass').focus();
+      }
+    }
+
+    function mostrarPanel() {
+      document.getElementById('pantallaLogin').classList.add('hidden');
+      document.getElementById('contenidoPanel').classList.remove('hidden');
+      cargarDatos();
+    }
+
+    function cerrarSesion() {
+      sessionStorage.removeItem('auth_supervisor');
+      location.reload();
+    }
+
+    // ==========================================
+    // LÓGICA DE DATOS Y DASHBOARD
+    // ==========================================
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzG-kkgmThs5FsUXnRbtACd7Ohhz1qoeMsnV2fEkecKj1wDNmNvmIjwC7TW2cMqOEmNzg/exec";
     
     let datosLocales = [];
     let datosFiltradosActuales = [];
 
-    // Variables globales para Chart.js
     let instChartDona = null;
     let instChartBarras = null;
-
-    window.onload = function() {
-      cargarDatos();
-    };
 
     function cargarDatos() {
       const icono = document.getElementById('icono-reload');
@@ -299,29 +375,21 @@
     function filtrarTabla() {
       const busqueda = document.getElementById('inputBusqueda').value.toLowerCase();
       const filtroTipo = document.getElementById('filtroTipo').value;
-      const valDesde = document.getElementById('fechaDesde').value; // YYYY-MM-DD
-      const valHasta = document.getElementById('fechaHasta').value; // YYYY-MM-DD
+      const valDesde = document.getElementById('fechaDesde').value;
+      const valHasta = document.getElementById('fechaHasta').value;
 
       datosFiltradosActuales = datosLocales.filter(fila => {
-        // 1. Busqueda general texto
         const textoFila = `${fila[1]} ${fila[2]} ${fila[3]}`.toLowerCase();
         const coincideBusqueda = textoFila.includes(busqueda);
-
-        // 2. Filtro Tipo
         const coincideTipo = (filtroTipo === 'TODOS') || (fila[4] === filtroTipo);
 
-        // 3. Filtro Rango de Fechas
         let coincideFecha = true;
         if (fila[0]) {
           const fechaObj = new Date(fila[0]);
           const fechaIsoFila = fechaObj.toISOString().slice(0, 10);
           
-          if (valDesde && fechaIsoFila < valDesde) {
-            coincideFecha = false;
-          }
-          if (valHasta && fechaIsoFila > valHasta) {
-            coincideFecha = false;
-          }
+          if (valDesde && fechaIsoFila < valDesde) coincideFecha = false;
+          if (valHasta && fechaIsoFila > valHasta) coincideFecha = false;
         }
 
         return coincideBusqueda && coincideTipo && coincideFecha;
@@ -331,19 +399,13 @@
       actualizarMetricasYGraficos(datosFiltradosActuales);
     }
 
-    // ==========================================
-    // CÁLCULO DE KPIS Y ACTUALIZACIÓN DE GRÁFICOS
-    // ==========================================
     function actualizarMetricasYGraficos(registros) {
-      const hoyStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+      const hoyStr = new Date().toISOString().slice(0, 10);
 
       let entradasHoy = 0;
       let salidasHoy = 0;
-      
-      // Mapa para rastrear el último estado de cada legajo en el día de hoy
       const estadoUltimoHoy = {};
 
-      // Estructura para almacenar los datos de los últimos 7 días
       const diasUltimaSemana = [];
       const conteoPorDia = {};
 
@@ -361,37 +423,30 @@
         const fechaObj = new Date(fila[0]);
         const fechaIso = fechaObj.toISOString().slice(0, 10);
         const legajo = fila[1];
-        const tipo = fila[4]; // "ENTRADA" o "SALIDA"
+        const tipo = fila[4];
 
-        // Conteo del día de hoy
         if (fechaIso === hoyStr) {
           if (tipo === 'ENTRADA') entradasHoy++;
           if (tipo === 'SALIDA') salidasHoy++;
-          
-          // Guardamos el tipo más reciente
           estadoUltimoHoy[legajo] = tipo;
         }
 
-        // Conteo para el gráfico semanal
         if (conteoPorDia[fechaIso]) {
           if (tipo === 'ENTRADA') conteoPorDia[fechaIso].entradas++;
           if (tipo === 'SALIDA') conteoPorDia[fechaIso].salidas++;
         }
       });
 
-      // Empleados "En Planta": su última marcación de hoy fue ENTRADA
       let enPlantaHoy = 0;
       Object.values(estadoUltimoHoy).forEach(ultimoTipo => {
         if (ultimoTipo === 'ENTRADA') enPlantaHoy++;
       });
 
-      // Actualizar Tarjetas KPI
       document.getElementById('kpiEntradasHoy').innerText = entradasHoy;
       document.getElementById('kpiSalidasHoy').innerText = salidasHoy;
       document.getElementById('kpiEnPlanta').innerText = enPlantaHoy;
       document.getElementById('kpiTotalRegistros').innerText = registros.length;
 
-      // Renderizar Gráficos
       renderizarGraficoDona(enPlantaHoy, salidasHoy);
       renderizarGraficoBarras(diasUltimaSemana, conteoPorDia);
     }
@@ -407,9 +462,9 @@
           labels: ['En Planta', 'Salidas Registradas'],
           datasets: [{
             data: [enPlanta, salidas],
-            backgroundColor: ['#38bdf8', '#f43f5e'], // Sky-400 y Rose-500
+            backgroundColor: ['#38bdf8', '#f43f5e'],
             borderWidth: 2,
-            borderColor: '#1e293b' // Slate-800
+            borderColor: '#1e293b'
           }]
         },
         options: {
@@ -428,7 +483,6 @@
     function renderizarGraficoBarras(diasKey, conteoPorDia) {
       const ctx = document.getElementById('chartBarrasSemana').getContext('2d');
 
-      // Formatear etiquetas de fecha a "Día/Mes" (ej: "24/10")
       const labels = diasKey.map(f => {
         const partes = f.split('-');
         return `${partes[2]}/${partes[1]}`;
@@ -447,13 +501,13 @@
             {
               label: 'Entradas',
               data: dataEntradas,
-              backgroundColor: '#10b981', // Emerald-500
+              backgroundColor: '#10b981',
               borderRadius: 6
             },
             {
               label: 'Salidas',
               data: dataSalidas,
-              backgroundColor: '#f43f5e', // Rose-500
+              backgroundColor: '#f43f5e',
               borderRadius: 6
             }
           ]
@@ -468,7 +522,7 @@
             },
             y: {
               ticks: { color: '#94a3b8', precision: 0 },
-              grid: { color: '#334155' } // Slate-700
+              grid: { color: '#334155' }
             }
           },
           plugins: {
@@ -481,7 +535,6 @@
       });
     }
 
-    // UTILITIES
     function obtenerUrlDirectaFoto(url) {
       if (!url) return '';
       const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
@@ -503,7 +556,6 @@
       document.getElementById('imgModal').src = "";
     }
 
-    // EXPORTAR A EXCEL
     function exportarExcel() {
       if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
         return alert("No hay datos visibles para exportar.");
@@ -526,7 +578,6 @@
       XLSX.writeFile(wb, `Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
-    // EXPORTAR A PDF DIRECTO
     function exportarPDF() {
       if (!datosFiltradosActuales || datosFiltradosActuales.length === 0) {
         return alert("No hay datos visibles para exportar.");
