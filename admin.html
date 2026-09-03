@@ -101,7 +101,7 @@
   </div>
 
   <script>
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzlOpdxPSHNP4W1n3iZBDJgm2X2AwtICLJz52jxB9S-2RCoULsP0vm7N4qYAcSfXNbl5g/exec";
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzG-kkgmThs5FsUXnRbtACd7Ohhz1qoeMsnV2fEkecKj1wDNmNvmIjwC7TW2cMqOEmNzg/exec";
     
     let datosLocales = [];
     let datosFiltradosActuales = [];
@@ -153,7 +153,8 @@
       const ordenados = [...registros].reverse();
 
       ordenados.forEach(fila => {
-        const fecha = fila[0] ? new Date(fila[0]).toLocaleString('es-AR') : '-';
+        // Formato 24 horas forzado mediante { hour12: false }
+        const fecha = fila[0] ? new Date(fila[0]).toLocaleString('es-AR', { hour12: false }) : '-';
         const legajo = fila[1] || '-';
         const nombre = fila[2] || '-';
         const objetivo = fila[3] || '-';
@@ -238,7 +239,7 @@
 
       const cabeceras = [["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo", "Ubicación (Mapa)", "Foto URL"]];
       const filas = datosFiltradosActuales.map(f => [
-        f[0] ? new Date(f[0]).toLocaleString('es-AR') : '',
+        f[0] ? new Date(f[0]).toLocaleString('es-AR', { hour12: false }) : '',
         f[1] || '',
         f[2] || '',
         f[3] || '',
@@ -265,12 +266,12 @@
       doc.setFontSize(16);
       doc.text("Reporte de Marcaciones de Asistencia", 14, 15);
       doc.setFontSize(10);
-      doc.text(`Generado el: ${new Date().toLocaleString('es-AR')}`, 14, 22);
+      doc.text(`Generado el: ${new Date().toLocaleString('es-AR', { hour12: false })}`, 14, 22);
 
       const columnas = ["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo"];
 
       const filas = datosFiltradosActuales.map(f => [
-        f[0] ? new Date(f[0]).toLocaleString('es-AR') : '',
+        f[0] ? new Date(f[0]).toLocaleString('es-AR', { hour12: false }) : '',
         f[1] || '',
         f[2] || '',
         f[3] || '',
