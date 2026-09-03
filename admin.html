@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel de Control - Administración</title>
+  <title>VGA 24 - Panel de Control</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   
@@ -12,7 +12,45 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- ENCABEZADO Y MENÚ CORPORATIVO - VGA SECURITY 24 S.A. -->
+  <header class="bg-slate-900 border-b border-slate-800 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
+      
+      <!-- LOGO Y NOMBRE DE LA EMPRESA -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center text-emerald-400 font-bold text-lg shadow-inner">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <span class="text-[10px] font-extrabold tracking-widest text-emerald-400 uppercase block">VGA Security 24 S.A.</span>
+          <h1 class="text-lg font-bold text-white tracking-wide">Control en Tiempo Real</h1>
+        </div>
+      </div>
+
+      <!-- MENÚ DE NAVEGACIÓN RÁPIDA -->
+      <nav class="flex flex-wrap justify-center items-center gap-1 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60">
+        <a href="index.html" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition flex items-center space-x-1.5">
+          <i class="fa-solid fa-camera-retro text-emerald-400"></i>
+          <span>Fichadas</span>
+        </a>
+        <a href="admin.html" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition flex items-center space-x-1.5">
+          <i class="fa-solid fa-building-shield text-emerald-400"></i>
+          <span>Centro de Operaciones</span>
+        </a>
+        <a href="panel.html" class="px-3 py-1.5 text-xs font-medium text-white bg-slate-700 rounded-lg transition flex items-center space-x-1.5 shadow-sm">
+          <i class="fa-solid fa-chart-line text-emerald-400"></i>
+          <span>Control en Tiempo Real</span>
+        </a>
+        <a href="mis-horas.html" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition flex items-center space-x-1.5">
+          <i class="fa-solid fa-clock text-emerald-400"></i>
+          <span>Control de Mis Horas</span>
+        </a>
+      </nav>
+
+    </div>
+  </header>
 
   <!-- MODAL DE ACCESO ADMIN -->
   <div id="pantallaLoginAdmin" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 z-50">
@@ -45,14 +83,14 @@
   </div>
 
   <!-- CONTENIDO PRINCIPAL -->
-  <div id="contenidoAdmin" class="max-w-7xl mx-auto space-y-6 hidden">
+  <div id="contenidoAdmin" class="max-w-7xl mx-auto space-y-6 p-4 md:p-8 flex-grow hidden w-full">
     
-    <!-- ENCABEZADO -->
+    <!-- ENCABEZADO INTERNO -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
       <div>
-        <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+        <h2 class="text-2xl font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-shield-halved text-emerald-500"></i> Panel de Control Operativo
-        </h1>
+        </h2>
         <p class="text-xs text-slate-400 mt-1">Gestión de asistencia, personal autorizado y objetivos</p>
       </div>
       
@@ -139,7 +177,6 @@
         <form onsubmit="guardarVigilador(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div>
             <label class="block text-xs uppercase text-slate-400 mb-1">N° Legajo</label>
-            <!-- CAMBIADO A TYPE TEXT PARA PRESERVAR CEROS A LA IZQUIERDA -->
             <input type="text" id="newLegajo" required placeholder="Ej: 0286" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
           </div>
           <div>
