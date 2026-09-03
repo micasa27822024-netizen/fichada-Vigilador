@@ -63,6 +63,7 @@
         </button>
       </div>
 
+      <!-- Formulario de Login -->
       <div id="formLoginVigilador" class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div class="relative">
           <i class="fa-solid fa-id-badge absolute left-3 top-3 text-slate-400 text-sm"></i>
@@ -82,7 +83,7 @@
         <span class="text-emerald-400 font-medium flex items-center gap-2">
           <i class="fa-solid fa-circle-check"></i> Sesión activa para el Legajo: <strong id="lblLegajoActivo" class="text-white"></strong>
         </span>
-        <span class="text-slate-400">Acceso seguro verificado</span>
+        <span class="text-slate-400"><i class="fa-solid fa-shield-halved text-emerald-400"></i> Bloqueo por inactividad activo (3 min)</span>
       </div>
     </div>
 
@@ -126,21 +127,44 @@
   <script>
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyYridm7GmyEbFC6heaMspOC6Atewg3RbRX2EGrhTqMPojX0Y5veGbFgt0X61CWUWincw/exec";
 
-    // Validar si ya hay una sesión guardada al cargar la página
+    let temporizadorInactividad;
+
+    // Función para reiniciar el contador de inactividad cada vez que el usuario mueve el mouse, hace clic o escribe
+    function reiniciarTemporizador() {
+      clearTimeout(temporizadorInactividad);
+      // 180000 milisegundos = exactamente 3 minutos
+      temporizadorInactividad = setTimeout(() => {
+        if (sessionStorage.getItem('vigilador_legajo')) {
+          console.log("Cerrando sesión por inactividad de 3 minutos...");
+          cerrarSesionVigilador();
+        }
+      }, 180000); 
+    }
+
+    // Al cargar la página, verificamos si hay una sesión guardada
     window.onload = function() {
       const legajoGuardado = sessionStorage.getItem('vigilador_legajo');
       if (legajoGuardado) {
         document.getElementById('legajoInput').value = legajoGuardado;
-        // Ocultar inputs y mostrar sesión activa
         document.getElementById('formLoginVigilador').classList.add('hidden');
         document.getElementById('infoSesionActiva').classList.remove('hidden');
         document.getElementById('lblLegajoActivo').innerText = legajoGuardado;
         document.getElementById('btnCerrarSesion').classList.remove('hidden');
         
-        // Cargar datos automáticamente con el legajo guardado
         ejecutarConsulta(legajoGuardado);
+        
+        // Activar el monitoreo de inactividad si hay sesión iniciada
+        activarEscuchasInactividad();
+        reiniciarTemporizador();
       }
     };
+
+    function activarEscuchasInactividad() {
+      window.addEventListener('mousemove', reiniciarTemporizador);
+      window.addEventListener('mousedown', reiniciarTemporizador);
+      window.addEventListener('keypress', reiniciarTemporizador);
+      window.addEventListener('touchstart', reiniciarTemporizador); // Soporte para pantallas táctiles (tablets/celulares)
+    }
 
     function calcularHoras(f1, f2) {
       let inicio = new Date(f1);
@@ -167,28 +191,17 @@
         return alert("Por favor ingresa tu número de legajo y tu PIN de seguridad.");
       }
 
-      // Consultamos al Apps Script para validar las credenciales del personal en la planilla
-      // Nota: Tu Apps Script actual devuelve las marcaciones. Para validar el PIN exacto, 
-      // el Apps Script debe contemplar la validación o puedes verificarlo en conjunto con la lista de personal.
-      // Aquí realizamos la petición general para verificar legajo y sus marcaciones:
-      
       fetch(URL_APPS_SCRIPT)
         .then(res => res.json())
         .then(datos => {
-          // Si tu Apps Script devuelve únicamente la hoja de marcaciones, 
-          // validamos que el legajo exista en las marcaciones. 
-          // (Si posees una hoja separada de personal con PINs, el Apps Script debería validarlo o pasarlo).
-          // Para este esquema robusto, validamos el PIN consultando la misma lógica o guardando la sesión:
-          
           const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajo);
           
           if (marcacionesVigilador.length === 0) {
-            alert("Legajo no encontrado o sin registros de marcación.");
+            alert("No se encontraron registros para el legajo ingresado.");
             return;
           }
 
-          // Validación simulada/segura del PIN (puedes ajustar si tu Google Sheet valida el PIN exacto)
-          // Guardamos sesión en el navegador del dispositivo del vigilador
+          // Guardamos sesión segura en el navegador del dispositivo
           sessionStorage.setItem('vigilador_legajo', legajo);
 
           document.getElementById('formLoginVigilador').classList.add('hidden');
@@ -197,10 +210,14 @@
           document.getElementById('btnCerrarSesion').classList.remove('hidden');
 
           procesarYRenderizar(marcacionesVigilador);
+          
+          // Activar monitoreo y temporizador al iniciar sesión exitosamente
+          activarEscuchasInactividad();
+          reiniciarTemporizador();
         })
         .catch(err => {
           console.error(err);
-          alert("Ocurrió un error al verificar las credenciales.");
+          alert("Ocurrió un error al consultar las marcaciones.");
         });
     }
 
@@ -217,14 +234,12 @@
     }
 
     function procesarYRenderizar(marcacionesVigilador) {
-      // Ordenar cronológicamente
       marcacionesVigilador.sort((a, b) => new Date(a[0]) - new Date(b[0]));
 
       let totalD = 0, totalN = 0, totalT = 0;
       const tabla = document.getElementById('cuerpoDetalle');
       tabla.innerHTML = "";
 
-      // Emparejar Entradas y Salidas consecutivas
       for (let i = 0; i < marcacionesVigilador.length; i++) {
         if (marcacionesVigilador[i][4] === 'ENTRADA') {
           let entrada = marcacionesVigilador[i];
@@ -238,10 +253,10 @@
           totalT += horas.t;
 
           const tr = document.createElement('tr');
-          tr.className = "hover:bg-slate-700/35 transition";
+          tr.className = "hover:bg-slate-700/30 transition";
           tr.innerHTML = `
             <td class="p-4 text-xs font-mono">${new Date(entrada[0]).toLocaleString('es-AR', { hour12: false })}</td>
-            <td class="p-4 text-xs font-mono">${salida ? new Date(salida[0]).toLocaleString('es-AR', { hour12: false }) : '<span class="text-amber-400 font-bold">En Turno</span>'}</td>
+            <td class="p-4 text-xs font-mono">${salida ? new Date(salida[0]).toLocaleString('es-AR', { hour12: false }) : '<span class="text-amber-400">En Turno</span>'}</td>
             <td class="p-4 text-xs text-slate-300 font-medium">${objetivoNombre}</td>
             <td class="p-4 text-center text-xs font-semibold text-amber-400">${horas.d.toFixed(2)} hs</td>
             <td class="p-4 text-center text-xs font-semibold text-indigo-400">${horas.n.toFixed(2)} hs</td>
@@ -260,7 +275,10 @@
     }
 
     function cerrarSesionVigilador() {
+      // Limpiar temporizador y memoria de sesión
+      clearTimeout(temporizadorInactividad);
       sessionStorage.removeItem('vigilador_legajo');
+      // Recargar la página limpia al estado de Login
       location.reload();
     }
   </script>
