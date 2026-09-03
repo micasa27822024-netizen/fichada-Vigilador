@@ -139,7 +139,8 @@
         <form onsubmit="guardarVigilador(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div>
             <label class="block text-xs uppercase text-slate-400 mb-1">N° Legajo</label>
-            <input type="number" id="newLegajo" required placeholder="Ej: 1024" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+            <!-- CAMBIADO A TYPE TEXT PARA PRESERVAR CEROS A LA IZQUIERDA -->
+            <input type="text" id="newLegajo" required placeholder="Ej: 0286" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
           </div>
           <div>
             <label class="block text-xs uppercase text-slate-400 mb-1">Nombre Completo</label>
@@ -169,10 +170,11 @@
                 <th class="p-4">Nombre Oficial</th>
                 <th class="p-4 text-center">PIN</th>
                 <th class="p-4 text-center">Estado</th>
+                <th class="p-4 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody id="cuerpoTablaPersonal" class="divide-y divide-slate-700/50">
-              <tr><td colspan="4" class="p-8 text-center text-slate-400">Cargando personal...</td></tr>
+              <tr><td colspan="5" class="p-8 text-center text-slate-400">Cargando personal...</td></tr>
             </tbody>
           </table>
         </div>
@@ -204,10 +206,11 @@
                 <th class="p-4">ID / Código</th>
                 <th class="p-4">Nombre del Objetivo</th>
                 <th class="p-4 text-center">Estado</th>
+                <th class="p-4 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody id="cuerpoTablaObjetivos" class="divide-y divide-slate-700/50">
-              <tr><td colspan="3" class="p-8 text-center text-slate-400">Cargando objetivos...</td></tr>
+              <tr><td colspan="4" class="p-8 text-center text-slate-400">Cargando objetivos...</td></tr>
             </tbody>
           </table>
         </div>
@@ -345,7 +348,7 @@
 
       ordenados.forEach(fila => {
         const fecha = fila[0] ? new Date(fila[0]).toLocaleString('es-AR', { hour12: false }) : '-';
-        const legajo = fila[1] || '-';
+        const legajo = fila[1] !== undefined ? String(fila[1]) : '-';
         const nombre = fila[2] || '-';
         const objetivo = fila[3] || '-';
         const tipo = fila[4] || '-';
@@ -405,26 +408,29 @@
       cuerpo.innerHTML = "";
 
       if (!registros || registros.length === 0) {
-        cuerpo.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400">No hay personal registrado.</td></tr>`;
+        cuerpo.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400">No hay personal registrado.</td></tr>`;
         return;
       }
 
       registros.forEach(fila => {
+        const legajoStr = String(fila[0]);
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-700/30 transition";
         tr.innerHTML = `
-          <td class="p-4 font-bold text-amber-400">${fila[0]}</td>
+          <td class="p-4 font-bold text-amber-400">${legajoStr}</td>
           <td class="p-4 font-medium text-white">${fila[1]}</td>
           <td class="p-4 text-center font-mono text-slate-400">${fila[3] || '****'}</td>
           <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">${fila[4] || 'ACTIVO'}</span></td>
+          <td class="p-4 text-center">
+            <button onclick="eliminarVigilador('${legajoStr}')" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/40 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1" title="Eliminar Vigilador">
+              <i class="fa-solid fa-trash"></i> Eliminar
+            </button>
+          </td>
         `;
         cuerpo.appendChild(tr);
       });
     }
 
-    // ==========================================
-    // ENVÍO CORREGIDO PARA GUARDAR VIGILADOR
-    // ==========================================
     function guardarVigilador(e) {
       e.preventDefault();
       const btn = document.getElementById('btnGuardarGuardia');
@@ -432,11 +438,11 @@
       btn.innerText = "Guardando...";
 
       const pinGenerado = document.getElementById('newPin').value;
+      const legajoIngresado = document.getElementById('newLegajo').value.trim();
 
-      // Se envía tipoAccion EXACTAMENTE como lo espera Apps Script
       const payload = {
         tipoAccion: "AGREGAR_EMPLEADO",
-        legajo: document.getElementById('newLegajo').value,
+        legajo: legajoIngresado,
         nombre: document.getElementById('newNombre').value,
         pin: pinGenerado
       };
@@ -467,37 +473,69 @@
       });
     }
 
+    function eliminarVigilador(legajo) {
+      if (!confirm(`¿Estás seguro de que deseas eliminar al vigilador con legajo ${legajo}?`)) {
+        return;
+      }
+
+      const payload = {
+        tipoAccion: "ELIMINAR_EMPLEADO",
+        legajo: legajo
+      };
+
+      fetch(URL_APPS_SCRIPT, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.exito) {
+          alert(res.mensaje || "Vigilador eliminado con éxito.");
+          recargarDatosEfectivo();
+        } else {
+          alert("Error: " + res.mensaje);
+        }
+      })
+      .catch(err => {
+        alert("Ocurrió un error al eliminar: " + err.toString());
+      });
+    }
+
     function renderizarTablaObjetivos(registros) {
       const cuerpo = document.getElementById('cuerpoTablaObjetivos');
       cuerpo.innerHTML = "";
 
       if (!registros || registros.length === 0) {
-        cuerpo.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-slate-400">No hay objetivos registrados.</td></tr>`;
+        cuerpo.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400">No hay objetivos registrados.</td></tr>`;
         return;
       }
 
       registros.forEach(fila => {
+        const idObj = fila[0] || 'OBJ';
+        const nombreObj = fila[1] || fila[0];
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-700/30 transition";
         tr.innerHTML = `
-          <td class="p-4 font-mono text-xs text-slate-400">${fila[0] || 'OBJ'}</td>
-          <td class="p-4 font-medium text-white">${fila[1] || fila[0]}</td>
+          <td class="p-4 font-mono text-xs text-slate-400">${idObj}</td>
+          <td class="p-4 font-medium text-white">${nombreObj}</td>
           <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">${fila[3] || 'ACTIVO'}</span></td>
+          <td class="p-4 text-center">
+            <button onclick="eliminarObjetivo('${idObj}')" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/40 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1" title="Eliminar Objetivo">
+              <i class="fa-solid fa-trash"></i> Eliminar
+            </button>
+          </td>
         `;
         cuerpo.appendChild(tr);
       });
     }
 
-    // ==========================================
-    // ENVÍO CORREGIDO PARA GUARDAR OBJETIVO
-    // ==========================================
     function guardarObjetivo(e) {
       e.preventDefault();
       const btn = document.getElementById('btnGuardarObj');
       btn.disabled = true;
       btn.innerText = "Guardando...";
 
-      // Se envía tipoAccion EXACTAMENTE como lo espera Apps Script
       const payload = {
         tipoAccion: "AGREGAR_OBJETIVO",
         nombre: document.getElementById('newObjetivo').value
@@ -524,6 +562,35 @@
       .finally(() => {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-plus"></i> Añadir Objetivo`;
+      });
+    }
+
+    function eliminarObjetivo(id) {
+      if (!confirm(`¿Estás seguro de que deseas eliminar este objetivo (${id})?`)) {
+        return;
+      }
+
+      const payload = {
+        tipoAccion: "ELIMINAR_OBJETIVO",
+        id: id
+      };
+
+      fetch(URL_APPS_SCRIPT, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.exito) {
+          alert(res.mensaje || "Objetivo eliminado con éxito.");
+          recargarDatosEfectivo();
+        } else {
+          alert("Error: " + res.mensaje);
+        }
+      })
+      .catch(err => {
+        alert("Ocurrió un error al eliminar: " + err.toString());
       });
     }
 
@@ -556,7 +623,7 @@
       const cabeceras = [["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo", "Ubicación (Mapa)", "Foto URL"]];
       const filas = datosFiltradosMarcaciones.map(f => [
         f[0] ? new Date(f[0]).toLocaleString('es-AR', { hour12: false }) : '',
-        f[1] || '',
+        f[1] !== undefined ? String(f[1]) : '',
         f[2] || '',
         f[3] || '',
         f[4] || '',
@@ -586,7 +653,7 @@
       const columnas = ["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo"];
       const filas = datosFiltradosMarcaciones.map(f => [
         f[0] ? new Date(f[0]).toLocaleString('es-AR', { hour12: false }) : '',
-        f[1] || '',
+        f[1] !== undefined ? String(f[1]) : '',
         f[2] || '',
         f[3] || '',
         f[4] || ''
