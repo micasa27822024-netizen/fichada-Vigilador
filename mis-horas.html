@@ -62,7 +62,7 @@
   </div>
 
   <script>
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzlOpdxPSHNP4W1n3iZBDJgm2X2AwtICLJz52jxB9S-2RCoULsP0vm7N4qYAcSfXNbl5g/exec";
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzG-kkgmThs5FsUXnRbtACd7Ohhz1qoeMsnV2fEkecKj1wDNmNvmIjwC7TW2cMqOEmNzg/exec";
 
     function calcularHoras(f1, f2) {
       let inicio = new Date(f1);
@@ -117,9 +117,8 @@
               const tr = document.createElement('tr');
               tr.className = "hover:bg-slate-700/30 transition";
               tr.innerHTML = `
-                <td class="p-4 text-xs font-mono">${new Date(entrada[0]).toLocaleString('es-AR')}</td>
-                <td class="p-4 text-xs font-mono">${salida ? new Date(salida[0]).toLocaleString('es-AR') : '<span class="text-amber-400">En Turno</span>'}</td>
-                <td class="p-4">${entrada[3]}</td>
+               <td class="p-4 text-xs font-mono">${new Date(entrada[0]).toLocaleString('es-AR', { hour12: false })}</td>
+               <td class="p-4 text-xs font-mono">${salida ? new Date(salida[0]).toLocaleString('es-AR', { hour12: false }) : '<span class="text-amber-400">En Turno</span>'}</td>
                 <td class="p-4 text-center font-semibold text-amber-400">${horas.d.toFixed(2)} hs</td>
                 <td class="p-4 text-center font-semibold text-indigo-400">${horas.n.toFixed(2)} hs</td>
                 <td class="p-4 text-center font-bold text-emerald-400">${horas.t.toFixed(2)} hs</td>
