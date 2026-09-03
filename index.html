@@ -101,20 +101,32 @@
       divResultado.innerText = "Obteniendo ubicación GPS...";
       divResultado.classList.remove('hidden');
 
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            enviarFichada(tipo, pos.coords.latitude, pos.coords.longitude);
-          },
-          err => {
-            console.warn("GPS no disponible/denegado: " + err.message);
-            enviarFichada(tipo, 0, 0);
-          },
-          { timeout: 7000, enableHighAccuracy: true }
-        );
-      } else {
-        enviarFichada(tipo, 0, 0);
+      // Validar si el navegador soporta Geolocation
+      if (!navigator.geolocation) {
+        divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
+        divResultado.innerText = "❌ El dispositivo/navegador no soporta localización GPS.";
+        return;
       }
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+
+          if (!lat || !lng || lat === 0 || lng === 0) {
+            divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
+            divResultado.innerText = "❌ No se obtuvo una coordenada GPS válida. Activa la ubicación para fichar.";
+            return;
+          }
+
+          enviarFichada(tipo, lat, lng);
+        },
+        err => {
+          divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
+          divResultado.innerText = "❌ Permiso de GPS denegado o no disponible. Activa la ubicación en tu dispositivo.";
+        },
+        { timeout: 7000, enableHighAccuracy: true }
+      );
     }
 
     function enviarFichada(tipo, lat, lng) {
