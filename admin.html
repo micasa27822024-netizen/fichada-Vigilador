@@ -7,16 +7,14 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   
-  <!-- LIBRERÍAS DE EXPORTACIÓN (EXCEL Y PDF DIRECTO) -->
+  <!-- LIBRERÍAS DE EXPORTACIÓN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
 
-  <!-- ========================================== -->
-  <!-- MODAL / PANTALLA DE ACCESO CON CONTRASEÑA  -->
-  <!-- ========================================== -->
+  <!-- MODAL DE ACCESO ADMIN -->
   <div id="pantallaLoginAdmin" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 z-50">
     <div class="bg-slate-800 border border-slate-700 p-6 md:p-8 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-6">
       
@@ -46,9 +44,7 @@
     </div>
   </div>
 
-  <!-- ========================================== -->
-  <!-- CONTENIDO PRINCIPAL DE ADMIN               -->
-  <!-- ========================================== -->
+  <!-- CONTENIDO PRINCIPAL -->
   <div id="contenidoAdmin" class="max-w-7xl mx-auto space-y-6 hidden">
     
     <!-- ENCABEZADO -->
@@ -70,7 +66,7 @@
       </div>
     </div>
 
-    <!-- PESTAÑAS DE NAVEGACIÓN -->
+    <!-- PESTAÑAS -->
     <div class="flex border-b border-slate-700 gap-2">
       <button id="tabBtnMarcaciones" onclick="cambiarTab('marcaciones')" class="px-5 py-3 font-semibold text-sm border-b-2 border-emerald-500 text-emerald-400 flex items-center gap-2 transition">
         <i class="fa-solid fa-clipboard-user"></i> Marcaciones
@@ -83,11 +79,8 @@
       </button>
     </div>
 
-    <!-- ========================================== -->
-    <!-- VISTA 1: MARCACIONES DE ASISTENCIA         -->
-    <!-- ========================================== -->
+    <!-- TAB 1: MARCACIONES -->
     <div id="tabMarcaciones" class="space-y-4">
-      <!-- FILTROS, BÚSQUEDA Y EXPORTACIÓN -->
       <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col md:flex-row gap-4 justify-between items-center">
         <div class="flex-1 relative w-full">
           <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"></i>
@@ -110,7 +103,6 @@
         </div>
       </div>
 
-      <!-- TABLA DE MARCACIONES -->
       <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-slate-300">
@@ -138,11 +130,8 @@
       </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- VISTA 2: GESTIÓN DE PERSONAL / PINs        -->
-    <!-- ========================================== -->
+    <!-- TAB 2: PERSONAL / PINs -->
     <div id="tabPersonal" class="hidden space-y-6">
-      <!-- FORMULARIO NUEVO PERSONAL -->
       <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-user-plus text-amber-500"></i> Registrar Nuevo Vigilador
@@ -171,7 +160,6 @@
         </form>
       </div>
 
-      <!-- TABLA DE PERSONAL REGISTRADO -->
       <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-slate-300">
@@ -191,11 +179,8 @@
       </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- VISTA 3: GESTIÓN DE OBJETIVOS             -->
-    <!-- ========================================== -->
+    <!-- TAB 3: OBJETIVOS -->
     <div id="tabObjetivos" class="hidden space-y-6">
-      <!-- FORMULARIO NUEVO OBJETIVO -->
       <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-building-circle-check text-sky-500"></i> Registrar Nuevo Objetivo / Puesto
@@ -211,7 +196,6 @@
         </form>
       </div>
 
-      <!-- TABLA DE OBJETIVOS REGISTRADOS -->
       <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-slate-300">
@@ -252,7 +236,7 @@
 
   <script>
     const PASSWORD_ADMIN = "admin123"; 
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw7DystEmfnUc_xKUlY37iUeda-wBHED2v1I6OvKYw8uf5SIpJd5DE_SmWxUdxwsIEYcg/exec";
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzrRRD924v9JIRLjypInemrhhxLKOF2wsYcet3ZyhPBXjyYdH7ytNj1jJYfSNnZmtw8AQ/exec";
 
     let datosMarcaciones = [];
     let datosFiltradosMarcaciones = [];
@@ -319,14 +303,10 @@
       }
     }
 
-    // ==========================================
-    // CARGA GENERAL DE DATOS
-    // ==========================================
     function recargarDatosEfectivo() {
       const icono = document.getElementById('icono-reload');
       if (icono) icono.classList.add('fa-spin');
 
-      // Cargar Marcaciones
       fetch(URL_APPS_SCRIPT)
         .then(res => res.json())
         .then(data => {
@@ -334,7 +314,6 @@
           filtrarTablaMarcaciones();
         });
 
-      // Cargar Personal
       fetch(`${URL_APPS_SCRIPT}?tipo=personal`)
         .then(res => res.json())
         .then(data => {
@@ -342,7 +321,6 @@
           renderizarTablaPersonal(data);
         });
 
-      // Cargar Objetivos
       fetch(`${URL_APPS_SCRIPT}?tipo=objetivos`)
         .then(res => res.json())
         .then(data => {
@@ -354,9 +332,6 @@
         });
     }
 
-    // ==========================================
-    // TABLA 1: MARCACIONES
-    // ==========================================
     function renderizarTablaMarcaciones(registros) {
       const cuerpo = document.getElementById('cuerpoTablaMarcaciones');
       cuerpo.innerHTML = "";
@@ -425,9 +400,6 @@
       renderizarTablaMarcaciones(datosFiltradosMarcaciones);
     }
 
-    // ==========================================
-    // TABLA 2: PERSONAL
-    // ==========================================
     function renderizarTablaPersonal(registros) {
       const cuerpo = document.getElementById('cuerpoTablaPersonal');
       cuerpo.innerHTML = "";
@@ -443,13 +415,16 @@
         tr.innerHTML = `
           <td class="p-4 font-bold text-amber-400">${fila[0]}</td>
           <td class="p-4 font-medium text-white">${fila[1]}</td>
-          <td class="p-4 text-center font-mono text-slate-400">****</td>
-          <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">Activo</span></td>
+          <td class="p-4 text-center font-mono text-slate-400">${fila[3] || '****'}</td>
+          <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">${fila[4] || 'ACTIVO'}</span></td>
         `;
         cuerpo.appendChild(tr);
       });
     }
 
+    // ==========================================
+    // ENVÍO CORREGIDO PARA GUARDAR VIGILADOR
+    // ==========================================
     function guardarVigilador(e) {
       e.preventDefault();
       const btn = document.getElementById('btnGuardarGuardia');
@@ -458,8 +433,9 @@
 
       const pinGenerado = document.getElementById('newPin').value;
 
+      // Se envía tipoAccion EXACTAMENTE como lo espera Apps Script
       const payload = {
-        accion: "crearVigilador",
+        tipoAccion: "AGREGAR_EMPLEADO",
         legajo: document.getElementById('newLegajo').value,
         nombre: document.getElementById('newNombre').value,
         pin: pinGenerado
@@ -472,11 +448,18 @@
       })
       .then(res => res.json())
       .then(res => {
-        alert(`${res.mensaje || "Vigilador registrado con éxito."}\nPIN asignado: ${pinGenerado}`);
-        document.getElementById('newLegajo').value = "";
-        document.getElementById('newNombre').value = "";
-        generarPinAleatorio();
-        recargarDatosEfectivo();
+        if (res.exito) {
+          alert(`${res.mensaje || "Vigilador registrado con éxito."}\nPIN asignado: ${res.pinGenerado || pinGenerado}`);
+          document.getElementById('newLegajo').value = "";
+          document.getElementById('newNombre').value = "";
+          generarPinAleatorio();
+          recargarDatosEfectivo();
+        } else {
+          alert("Error: " + res.mensaje);
+        }
+      })
+      .catch(err => {
+        alert("Ocurrió un error al guardar: " + err.toString());
       })
       .finally(() => {
         btn.disabled = false;
@@ -484,9 +467,6 @@
       });
     }
 
-    // ==========================================
-    // TABLA 3: OBJETIVOS
-    // ==========================================
     function renderizarTablaObjetivos(registros) {
       const cuerpo = document.getElementById('cuerpoTablaObjetivos');
       cuerpo.innerHTML = "";
@@ -502,21 +482,25 @@
         tr.innerHTML = `
           <td class="p-4 font-mono text-xs text-slate-400">${fila[0] || 'OBJ'}</td>
           <td class="p-4 font-medium text-white">${fila[1] || fila[0]}</td>
-          <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">Activo</span></td>
+          <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">${fila[3] || 'ACTIVO'}</span></td>
         `;
         cuerpo.appendChild(tr);
       });
     }
 
+    // ==========================================
+    // ENVÍO CORREGIDO PARA GUARDAR OBJETIVO
+    // ==========================================
     function guardarObjetivo(e) {
       e.preventDefault();
       const btn = document.getElementById('btnGuardarObj');
       btn.disabled = true;
       btn.innerText = "Guardando...";
 
+      // Se envía tipoAccion EXACTAMENTE como lo espera Apps Script
       const payload = {
-        accion: "crearObjetivo",
-        nombreObjetivo: document.getElementById('newObjetivo').value
+        tipoAccion: "AGREGAR_OBJETIVO",
+        nombre: document.getElementById('newObjetivo').value
       };
 
       fetch(URL_APPS_SCRIPT, {
@@ -526,9 +510,16 @@
       })
       .then(res => res.json())
       .then(res => {
-        alert(res.mensaje || "Objetivo registrado con éxito.");
-        document.getElementById('newObjetivo').value = "";
-        recargarDatosEfectivo();
+        if (res.exito) {
+          alert(res.mensaje || "Objetivo registrado con éxito.");
+          document.getElementById('newObjetivo').value = "";
+          recargarDatosEfectivo();
+        } else {
+          alert("Error: " + res.mensaje);
+        }
+      })
+      .catch(err => {
+        alert("Ocurrió un error al guardar: " + err.toString());
       })
       .finally(() => {
         btn.disabled = false;
@@ -536,9 +527,6 @@
       });
     }
 
-    // ==========================================
-    // UTILIDADES DE MODAL Y EXPORTACIÓN
-    // ==========================================
     function obtenerUrlDirectaFoto(url) {
       if (!url) return '';
       const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
