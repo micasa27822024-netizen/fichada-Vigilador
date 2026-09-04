@@ -310,7 +310,7 @@
 
   <script>
     const PASSWORD_ADMIN = "admin123"; 
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyLXk5Bg7qwGcl9Hl3i1-hkzPYzxCvBn7ZK1j5YS6toygWIvw8vi-diWhIYle23nFobuQ/exec";
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyT_orgLdGDJO5zHHX_jehG1_Vi0VzPBIB6aIYDAHBirVGpZLgOcVTiG8VCiS8SnIzLGA/exec";
 
     let datosMarcaciones = [];
     let datosNovedades = [];
@@ -567,7 +567,7 @@
           <td class="p-4"><span class="font-bold text-white">${nombre}</span><br><span class="text-xs text-slate-400">Leg: ${legajo}</span></td>
           <td class="p-4 text-slate-300">${objetivo}</td>
           <td class="p-4"><span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-xs font-bold">${tipoIncidencia}</span></td>
-          <td class="p-4 text-slate-200 max-w-xs truncate" title="${descripcion}">${descripcion}</td>
+          <td class="p-4 text-slate-200" style="max-width: 300px; white-space: normal; word-break: break-word;" title="${descripcion}">${descripcion}</td>
           <td class="p-4 text-center">${btnMapa}</td>
           <td class="p-4 text-center">${btnFoto}</td>
         `;
