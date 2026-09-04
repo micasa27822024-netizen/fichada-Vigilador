@@ -217,7 +217,6 @@
     }
 
     function procesarEnvio(tipoRecibido) {
-      // 🛠️ FORZAR EXPLICITAMENTE A MAYÚSCULAS PARA EVITAR CUALQUIER ERROR DE TIPEÓ
       const tipo = String(tipoRecibido).trim().toUpperCase();
 
       const legajo = document.getElementById('legajo').value.trim();
@@ -273,7 +272,7 @@
         pin: pin,
         nombre: nombre,
         objetivo: objetivo,
-        tipo: tipo, // <--- Envía estrictamente 'ENTRADA' o 'SALIDA' en mayúsculas
+        tipo: tipo, // Envía 'ENTRADA' o 'SALIDA' de manera dinámica y exacta
         latitud: lat,
         longitud: lng,
         fotoBase64: fotoBase64Global,
@@ -282,7 +281,7 @@
 
       console.log("Enviando datos al servidor:", datos);
 
-      // 🚀 RESPUESTA INSTANTÁNEA:
+      // Guardar en pendientes de respaldo de forma segura
       let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
       pendientes.push(datos);
       localStorage.setItem('fichadasPendientes', JSON.stringify(pendientes));
@@ -292,53 +291,38 @@
       divResultado.innerText = `✓ ¡Fichada de ${tipo} registrada con éxito!`;
       divResultado.classList.remove('hidden');
 
-      // Limpiar campos automáticamente antes de recargar
+      // Limpiar campos automáticamente
       document.getElementById('pin').value = "";
       document.getElementById('legajo').value = "";
       document.getElementById('nombre').value = "";
+
+      // Sincronización inmediata antes de recargar
+      sincronizarFichadasPendientes();
 
       // Recargar la pantalla (1 segundo)
       setTimeout(() => { 
         location.reload(); 
       }, 1000);
-
-      // Sincronización silenciosa en segundo plano
-      sincronizarFichadasPendientes();
     }
 
     function sincronizarFichadasPendientes() {
       let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
       if (pendientes.length === 0) return;
 
-      console.log("Sincronizando fichadas pendientes en segundo plano...");
-      let fichadasRestantes = [];
+      console.log("Sincronizando fichadas pendientes...");
+      
+      // Limpiamos el almacenamiento local para evitar bucles de reenvíos erróneos
+      localStorage.removeItem('fichadasPendientes');
 
-      let procesarSiguiente = (index) => {
-        if (index >= pendientes.length) {
-          localStorage.setItem('fichadasPendientes', JSON.stringify(fichadasRestantes));
-          return;
-        }
-
-        let datos = pendientes[index];
+      pendientes.forEach(datos => {
         fetch(URL_APPS_SCRIPT, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify(datos)
         })
         .then(res => res.json())
-        .then(res => {
-          if (!res.exito) {
-            fichadasRestantes.push(datos);
-          }
-          procesarSiguiente(index + 1);
-        })
-        .catch(() => {
-          fichadasRestantes.push(datos);
-          procesarSiguiente(index + 1);
-        });
-      };
-
-      procesarSiguiente(0);
+        .catch(err => console.error("Error sincronizando fichada:", err));
+      });
     }
   </script>
 </body>
