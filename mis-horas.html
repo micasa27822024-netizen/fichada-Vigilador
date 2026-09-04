@@ -117,7 +117,26 @@
       </div>
     </div>
 
-    <!-- MÓDULO DE NOVEDADES E INCIDENCIAS (VISIBLE SOLO CON SESIÓN ACTIVA) -->
+    <!-- TABLA DE DETALLE -->
+    <div id="contenedorTabla" class="hidden bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-700">
+            <tr>
+              <th class="p-4">Entrada</th>
+              <th class="p-4">Salida</th>
+              <th class="p-4">Objetivo</th>
+              <th class="p-4 text-center">Diurnas</th>
+              <th class="p-4 text-center">Nocturnas</th>
+              <th class="p-4 text-center">Total</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoDetalle" class="divide-y divide-slate-700/50"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MÓDULO DE NOVEDADES E INCIDENCIAS (ABAJO DE TODO, SOLO SI ESTÁ EN SERVICIO) -->
     <div id="seccionNovedades" class="hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Reportar Novedad o Incidencia
@@ -150,31 +169,12 @@
       </button>
     </div>
 
-    <!-- TABLA DE DETALLE -->
-    <div id="contenedorTabla" class="hidden bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-300">
-          <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-700">
-            <tr>
-              <th class="p-4">Entrada</th>
-              <th class="p-4">Salida</th>
-              <th class="p-4">Objetivo</th>
-              <th class="p-4 text-center">Diurnas</th>
-              <th class="p-4 text-center">Nocturnas</th>
-              <th class="p-4 text-center">Total</th>
-            </tr>
-          </thead>
-          <tbody id="cuerpoDetalle" class="divide-y divide-slate-700/50"></tbody>
-        </table>
-      </div>
-    </div>
-
   </main>
 
   <script>
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyLXk5Bg7qwGcl9Hl3i1-hkzPYzxCvBn7ZK1j5YS6toygWIvw8vi-diWhIYle23nFobuQ/exec";
     let temporizadorInactividad;
-    let datosVigiladorGlobal = []; // Almacena los datos del legajo en memoria para filtrar rápido
+    let datosVigiladorGlobal = []; 
 
     function reiniciarTemporizador() {
       clearTimeout(temporizadorInactividad);
@@ -194,7 +194,7 @@
         document.getElementById('infoSesionActiva').classList.remove('hidden');
         document.getElementById('lblLegajoActivo').innerText = legajoGuardado;
         document.getElementById('btnCerrarSesion').classList.remove('hidden');
-        document.getElementById('seccionNovedades').classList.remove('hidden'); // Muestra módulo de novedades
+        document.getElementById('seccionNovedades').classList.remove('hidden'); 
         
         try {
           const cacheLocal = localStorage.getItem('cache_datos_vigiladores');
@@ -274,7 +274,7 @@
           document.getElementById('infoSesionActiva').classList.remove('hidden');
           document.getElementById('lblLegajoActivo').innerText = legajo;
           document.getElementById('btnCerrarSesion').classList.remove('hidden');
-          document.getElementById('seccionNovedades').classList.remove('hidden'); // Muestra módulo de novedades
+          document.getElementById('seccionNovedades').classList.remove('hidden'); 
 
           poblarSelectMeses(datosVigiladorGlobal);
           procesarYRenderizar(datosVigiladorGlobal);
@@ -302,7 +302,6 @@
         .catch(err => console.error(err));
     }
 
-    // 📅 LLENAR EL SELECT DE MESES DINÁMICAMENTE SEGÚN LOS REGISTROS
     function poblarSelectMeses(datos) {
       const selectMes = document.getElementById('filtroMes');
       const mesActualSeleccionado = selectMes.value;
@@ -338,7 +337,6 @@
       }
     }
 
-    // 🔍 APLICAR FILTROS DE MES Y DÍA
     function aplicarFiltros() {
       const mesFiltro = document.getElementById('filtroMes').value;
       const diaFiltro = document.getElementById('filtroDia').value;
@@ -415,7 +413,7 @@
       document.getElementById('contenedorTabla').classList.remove('hidden');
     }
 
-    // 📝 ENVÍO DE NOVEDAD DESDE EL PORTAL CON GPS OBLIGATORIO
+    // 📝 ENVÍO DE NOVEDAD CON VALIDACIÓN ESTRICTA DE ESTAR EN SERVICIO Y GPS
     function enviarNovedadPortal() {
       const legajo = sessionStorage.getItem('vigilador_legajo');
       const tipoIncidencia = document.getElementById('tipoIncidencia').value;
@@ -424,6 +422,26 @@
 
       if (!legajo) {
         alert("Debe iniciar sesión para enviar una novedad.");
+        return;
+      }
+
+      // Validar si realmente está en servicio (la última marcación debe ser ENTRADA sin SALIDA)
+      let enServicio = false;
+      let objetivoActual = "Objetivo Asignado";
+
+      if (datosVigiladorGlobal.length > 0) {
+        // Ordenamos cronológicamente por las dudas
+        let ordenadas = [...datosVigiladorGlobal].sort((a, b) => new Date(a[0]) - new Date(b[0]));
+        let ultimaMar = ordenadas[ordenadas.length - 1];
+        
+        if (ultimaMar && ultimaMar[4] === 'ENTRADA') {
+          enServicio = true;
+          if (ultimaMar[3]) objetivoActual = ultimaMar[3];
+        }
+      }
+
+      if (!enServicio) {
+        alert("❌ No se puede enviar el informe: Actualmente se encuentra fuera de servicio (debe tener una Entra activa / En Turno).");
         return;
       }
 
@@ -437,14 +455,6 @@
         return;
       }
 
-      // Tomamos el último objetivo registrado por el vigilador de memoria si está disponible
-      let objetivoActual = "Objetivo Asignado";
-      if (datosVigiladorGlobal.length > 0) {
-        const ultimaMar = datosVigiladorGlobal[datosVigiladorGlobal.length - 1];
-        if (ultimaMar[3]) objetivoActual = ultimaMar[3];
-      }
-
-      // Solicitamos GPS obligatoriamente para certificar dónde se reportó
       navigator.geolocation.getCurrentPosition(
         function(position) {
           const lat = position.coords.latitude;
@@ -509,7 +519,7 @@
       document.getElementById('btnCerrarSesion').classList.add('hidden');
       document.getElementById('seccionFiltros').classList.add('hidden');
       document.getElementById('resumenHoras').classList.add('hidden');
-      document.getElementById('seccionNovedades').classList.add('hidden'); // Oculta módulo de novedades
+      document.getElementById('seccionNovedades').classList.add('hidden'); 
       document.getElementById('contenedorTabla').classList.add('hidden');
       
       document.getElementById('legajoInput').value = '';
