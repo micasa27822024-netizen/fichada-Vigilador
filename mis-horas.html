@@ -72,12 +72,33 @@
       </div>
 
       <!-- Indicador de Sesión Activa -->
-      <div id="infoSesionActiva" class="hidden flex items-center justify-between bg-slate-900/60 border border-emerald-500/30 px-4 py-2.5 rounded-xl text-xs">
+      <div id="infoSesionActiva" class="hidden flex flex-col md:flex-row items-center justify-between bg-slate-900/60 border border-emerald-500/30 px-4 py-2.5 rounded-xl text-xs gap-2">
         <span class="text-emerald-400 font-medium flex items-center gap-2">
           <i class="fa-solid fa-circle-check"></i> Sesión activa para el Legajo: <strong id="lblLegajoActivo" class="text-white"></strong>
         </span>
         <span class="text-slate-400"><i class="fa-solid fa-shield-halved text-emerald-400"></i> Bloqueo por inactividad (3 min)</span>
       </div>
+    </div>
+
+    <!-- FILTROS DE FECHA (MES Y DÍA) -->
+    <div id="seccionFiltros" class="hidden bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-calendar-days text-emerald-400"></i> Mes:</label>
+          <select id="filtroMes" onchange="aplicarFiltros()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+            <option value="todos">Todos los meses</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-filter text-emerald-400"></i> Día específico:</label>
+          <input type="date" id="filtroDia" onchange="aplicarFiltros()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+        </div>
+      </div>
+
+      <button onclick="limpiarFiltros()" class="text-xs text-slate-400 hover:text-white bg-slate-700/50 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition">
+        <i class="fa-solid fa-rotate-right"></i> Limpiar filtros
+      </button>
     </div>
 
     <!-- TARJETAS DE RESUMEN -->
@@ -120,6 +141,7 @@
   <script>
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxAHmmBC3pEoBOuUzO8k0ul7micGbcnUKbo0eA45XfcQr76rc1voJBsyk1xYhCd0B9TEw/exec";
     let temporizadorInactividad;
+    let datosVigiladorGlobal = []; // Almacena los datos del legajo en memoria para filtrar rápido
 
     function reiniciarTemporizador() {
       clearTimeout(temporizadorInactividad);
@@ -140,21 +162,21 @@
         document.getElementById('lblLegajoActivo').innerText = legajoGuardado;
         document.getElementById('btnCerrarSesion').classList.remove('hidden');
         
-        // 🚀 CARGA INSTÁNTDEA DESDE LA MEMORIA LOCAL SI EXISTE
         try {
           const cacheLocal = localStorage.getItem('cache_datos_vigiladores');
           if (cacheLocal) {
             const datos = JSON.parse(cacheLocal);
             const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajoGuardado);
             if (marcacionesVigilador.length > 0) {
-              procesarYRenderizar(marcacionesVigilador);
+              datosVigiladorGlobal = marcacionesVigilador;
+              poblarSelectMeses(datosVigiladorGlobal);
+              procesarYRenderizar(datosVigiladorGlobal);
             }
           }
         } catch (e) {
           console.error("Error al leer caché local", e);
         }
 
-        // Buscar datos frescos en segundo plano
         ejecutarConsulta(legajoGuardado);
         activarEscuchasInactividad();
         reiniciarTemporizador();
@@ -185,7 +207,6 @@
       return { d: diurnas, n: nocturnas, t: diurnas + nocturnas };
     }
 
-    // 🕒 FUNCIÓN PARA PASAR DE DECIMAL A FORMATO RELOJ (HH:MM)
     function formatearAHorasReloj(horasDecimales) {
       if (isNaN(horasDecimales) || horasDecimales <= 0) return "00:00 hs";
       const horas = Math.floor(horasDecimales);
@@ -204,7 +225,7 @@
       fetch(URL_APPS_SCRIPT)
         .then(res => res.json())
         .then(datos => {
-          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(datos)); // Guardar caché
+          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(datos));
           const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajo);
           
           if (marcacionesVigilador.length === 0) {
@@ -213,13 +234,15 @@
           }
 
           sessionStorage.setItem('vigilador_legajo', legajo);
+          datosVigiladorGlobal = marcacionesVigilador;
 
           document.getElementById('formLoginVigilador').classList.add('hidden');
           document.getElementById('infoSesionActiva').classList.remove('hidden');
           document.getElementById('lblLegajoActivo').innerText = legajo;
           document.getElementById('btnCerrarSesion').classList.remove('hidden');
 
-          procesarYRenderizar(marcacionesVigilador);
+          poblarSelectMeses(datosVigiladorGlobal);
+          procesarYRenderizar(datosVigiladorGlobal);
           activarEscuchasInactividad();
           reiniciarTemporizador();
         })
@@ -233,13 +256,88 @@
       fetch(URL_APPS_SCRIPT)
         .then(res => res.json())
         .then(datos => {
-          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(datos)); // Guardar caché
+          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(datos));
           const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajo);
           if (marcacionesVigilador.length > 0) {
-            procesarYRenderizar(marcacionesVigilador);
+            datosVigiladorGlobal = marcacionesVigilador;
+            poblarSelectMeses(datosVigiladorGlobal);
+            aplicarFiltros(); // Mantener filtro activo si cambia la data de fondo
           }
         })
         .catch(err => console.error(err));
+    }
+
+    // 📅 LLENAR EL SELECT DE MESES DINÁMICAMENTE SEGÚN LOS REGISTROS
+    function poblarSelectMeses(datos) {
+      const selectMes = document.getElementById('filtroMes');
+      const mesActualSeleccionado = selectMes.value;
+      
+      // Extraer meses únicos en formato YYYY-MM
+      const mesesSet = new Set();
+      datos.forEach(f => {
+        if(f[0]) {
+          const d = new Date(f[0]);
+          if(!isNaN(d)) {
+            const anio = d.getFullYear();
+            const mes = String(d.getMonth() + 1).padStart(2, '0');
+            mesesSet.add(`${anio}-${mes}`);
+          }
+        }
+      });
+
+      // Ordenar meses del más nuevo al más viejo
+      const mesesOrdenados = Array.from(mesesSet).sort().reverse();
+
+      selectMes.innerHTML = `<option value="todos">Todos los meses</option>`;
+      const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+      mesesOrdenados.forEach(m => {
+        const [anio, mesNum] = m.split('-');
+        const nombreMesTexto = `${nombresMeses[parseInt(mesNum) - 1]} ${anio}`;
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.innerText = nombreMesTexto;
+        selectMes.appendChild(opt);
+      });
+
+      if (mesesOrdenados.includes(mesActualSeleccionado)) {
+        selectMes.value = mesActualSeleccionado;
+      }
+    }
+
+    // 🔍 APLICAR FILTROS DE MES Y DÍA
+    function aplicarFiltros() {
+      const mesFiltro = document.getElementById('filtroMes').value;
+      const diaFiltro = document.getElementById('filtroDia').value;
+
+      let filtrados = datosVigiladorGlobal;
+
+      if (mesFiltro !== 'todos') {
+        filtrados = filtrados.filter(f => {
+          const d = new Date(f[0]);
+          const anio = d.getFullYear();
+          const mes = String(d.getMonth() + 1).padStart(2, '0');
+          return `${anio}-${mes}` === mesFiltro;
+        });
+      }
+
+      if (diaFiltro) {
+        filtrados = filtrados.filter(f => {
+          const d = new Date(f[0]);
+          const anio = d.getFullYear();
+          const mes = String(d.getMonth() + 1).padStart(2, '0');
+          const dia = String(d.getDate()).padStart(2, '0');
+          return `${anio}-${mes}-${dia}` === diaFiltro;
+        });
+      }
+
+      procesarYRenderizar(filtrados);
+    }
+
+    function limpiarFiltros() {
+      document.getElementById('filtroMes').value = 'todos';
+      document.getElementById('filtroDia').value = '';
+      procesarYRenderizar(datosVigiladorGlobal);
     }
 
     function procesarYRenderizar(marcacionesVigilador) {
@@ -279,6 +377,7 @@
       document.getElementById('horasNocturnas').innerText = formatearAHorasReloj(totalN);
       document.getElementById('horasTotales').innerText = formatearAHorasReloj(totalT);
 
+      document.getElementById('seccionFiltros').classList.remove('hidden');
       document.getElementById('resumenHoras').classList.remove('hidden');
       document.getElementById('contenedorTabla').classList.remove('hidden');
     }
@@ -286,15 +385,19 @@
     function cerrarSesionVigilador() {
       clearTimeout(temporizadorInactividad);
       sessionStorage.removeItem('vigilador_legajo');
+      datosVigiladorGlobal = [];
       
       document.getElementById('formLoginVigilador').classList.remove('hidden');
       document.getElementById('infoSesionActiva').classList.add('hidden');
       document.getElementById('btnCerrarSesion').classList.add('hidden');
+      document.getElementById('seccionFiltros').classList.add('hidden');
       document.getElementById('resumenHoras').classList.add('hidden');
       document.getElementById('contenedorTabla').classList.add('hidden');
       
       document.getElementById('legajoInput').value = '';
       document.getElementById('pinInput').value = '';
+      document.getElementById('filtroMes').innerHTML = `<option value="todos">Todos los meses</option>`;
+      document.getElementById('filtroDia').value = '';
     }
   </script>
 </body>
