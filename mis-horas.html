@@ -117,6 +117,39 @@
       </div>
     </div>
 
+    <!-- MÓDULO DE NOVEDADES E INCIDENCIAS (VISIBLE SOLO CON SESIÓN ACTIVA) -->
+    <div id="seccionNovedades" class="hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+      <h3 class="text-lg font-bold text-white flex items-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Reportar Novedad o Incidencia
+      </h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Tipo de Incidencia:</label>
+          <select id="tipoIncidencia" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+            <option value="Novedad de Guardia">Novedad de Guardia / Operativa</option>
+            <option value="Mantenimiento">Mantenimiento / Instalaciones</option>
+            <option value="Visita Autorizada">Visita / Proveedor</option>
+            <option value="Urgencia">Urgencia / Emergencia</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Adjuntar Foto (Opcional):</label>
+          <input type="file" id="fotoNovedadInput" accept="image/*" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-1.5 text-xs text-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Descripción del evento:</label>
+        <textarea id="descNovedad" rows="3" placeholder="Detalle lo sucedido en el servicio..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500"></textarea>
+      </div>
+
+      <button onclick="enviarNovedadPortal()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg">
+        <i class="fa-solid fa-paper-plane"></i> Enviar Novedad a la Central
+      </button>
+    </div>
+
     <!-- TABLA DE DETALLE -->
     <div id="contenedorTabla" class="hidden bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
       <div class="overflow-x-auto">
@@ -161,6 +194,7 @@
         document.getElementById('infoSesionActiva').classList.remove('hidden');
         document.getElementById('lblLegajoActivo').innerText = legajoGuardado;
         document.getElementById('btnCerrarSesion').classList.remove('hidden');
+        document.getElementById('seccionNovedades').classList.remove('hidden'); // Muestra módulo de novedades
         
         try {
           const cacheLocal = localStorage.getItem('cache_datos_vigiladores');
@@ -240,6 +274,7 @@
           document.getElementById('infoSesionActiva').classList.remove('hidden');
           document.getElementById('lblLegajoActivo').innerText = legajo;
           document.getElementById('btnCerrarSesion').classList.remove('hidden');
+          document.getElementById('seccionNovedades').classList.remove('hidden'); // Muestra módulo de novedades
 
           poblarSelectMeses(datosVigiladorGlobal);
           procesarYRenderizar(datosVigiladorGlobal);
@@ -261,7 +296,7 @@
           if (marcacionesVigilador.length > 0) {
             datosVigiladorGlobal = marcacionesVigilador;
             poblarSelectMeses(datosVigiladorGlobal);
-            aplicarFiltros(); // Mantener filtro activo si cambia la data de fondo
+            aplicarFiltros(); 
           }
         })
         .catch(err => console.error(err));
@@ -272,7 +307,6 @@
       const selectMes = document.getElementById('filtroMes');
       const mesActualSeleccionado = selectMes.value;
       
-      // Extraer meses únicos en formato YYYY-MM
       const mesesSet = new Set();
       datos.forEach(f => {
         if(f[0]) {
@@ -285,7 +319,6 @@
         }
       });
 
-      // Ordenar meses del más nuevo al más viejo
       const mesesOrdenados = Array.from(mesesSet).sort().reverse();
 
       selectMes.innerHTML = `<option value="todos">Todos los meses</option>`;
@@ -382,6 +415,90 @@
       document.getElementById('contenedorTabla').classList.remove('hidden');
     }
 
+    // 📝 ENVÍO DE NOVEDAD DESDE EL PORTAL CON GPS OBLIGATORIO
+    function enviarNovedadPortal() {
+      const legajo = sessionStorage.getItem('vigilador_legajo');
+      const tipoIncidencia = document.getElementById('tipoIncidencia').value;
+      const descripcion = document.getElementById('descNovedad').value.trim();
+      const inputArchivo = document.getElementById('fotoNovedadInput');
+
+      if (!legajo) {
+        alert("Debe iniciar sesión para enviar una novedad.");
+        return;
+      }
+
+      if (!descripcion) {
+        alert("Por favor, escriba la descripción de la novedad o incidencia.");
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        alert("Tu dispositivo no soporta geolocalización.");
+        return;
+      }
+
+      // Tomamos el último objetivo registrado por el vigilador de memoria si está disponible
+      let objetivoActual = "Objetivo Asignado";
+      if (datosVigiladorGlobal.length > 0) {
+        const ultimaMar = datosVigiladorGlobal[datosVigiladorGlobal.length - 1];
+        if (ultimaMar[3]) objetivoActual = ultimaMar[3];
+      }
+
+      // Solicitamos GPS obligatoriamente para certificar dónde se reportó
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+
+          if (inputArchivo.files && inputArchivo.files[0]) {
+            const lector = new FileReader();
+            lector.onload = function(e) {
+              enviarDatosServidor(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, e.target.result);
+            };
+            lector.readAsDataURL(inputArchivo.files[0]);
+          } else {
+            enviarDatosServidor(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, null);
+          }
+        },
+        function(error) {
+          alert("Error: Es necesario activar el GPS para enviar novedades.");
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+
+    function enviarDatosServidor(legajo, objetivo, tipoIncidencia, descripcion, lat, lon, fotoBase64) {
+      const payload = {
+        tipoAccion: "REGISTRAR_NOVEDAD",
+        legajo: legajo,
+        nombre: "Legajo " + legajo,
+        objetivo: objetivo,
+        tipoIncidencia: tipoIncidencia,
+        descripcion: descripcion,
+        latitud: lat,
+        longitud: lon,
+        fotoBase64: fotoBase64 || ""
+      };
+
+      fetch(URL_APPS_SCRIPT, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(respuesta => {
+        if (respuesta.exito) {
+          alert("✅ " + respuesta.mensaje);
+          document.getElementById('descNovedad').value = "";
+          document.getElementById('fotoNovedadInput').value = "";
+        } else {
+          alert("❌ Error: " + respuesta.mensaje);
+        }
+      })
+      .catch(error => {
+        alert("Error de conexión al enviar novedad: " + error.toString());
+      });
+    }
+
     function cerrarSesionVigilador() {
       clearTimeout(temporizadorInactividad);
       sessionStorage.removeItem('vigilador_legajo');
@@ -392,6 +509,7 @@
       document.getElementById('btnCerrarSesion').classList.add('hidden');
       document.getElementById('seccionFiltros').classList.add('hidden');
       document.getElementById('resumenHoras').classList.add('hidden');
+      document.getElementById('seccionNovedades').classList.add('hidden'); // Oculta módulo de novedades
       document.getElementById('contenedorTabla').classList.add('hidden');
       
       document.getElementById('legajoInput').value = '';
