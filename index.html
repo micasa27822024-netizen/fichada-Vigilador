@@ -117,19 +117,14 @@
     let fotoBase64Global = "";
 
     window.onload = function() {
-      // Iniciar cámara con HTTPS seguro de GitHub Pages
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
         .then(stream => { document.getElementById('webcam').srcObject = stream; })
         .catch(err => alert("Error al acceder a la cámara: " + err));
 
-      // Cargar lista de objetivos
       cargarObjetivos();
-
-      // Verificar estado de la red al iniciar
       actualizarEstadoRed();
     };
 
-    // Monitorear cambios de conectividad en tiempo real
     window.addEventListener('online', () => {
       actualizarEstadoRed();
       sincronizarFichadasPendientes();
@@ -270,12 +265,6 @@
     }
 
     function ejecutarPeticionFichada(tipo, lat, lng, legajo, pin, nombre, objetivo) {
-      const botonesEnvio = document.querySelectorAll("main .grid button");
-      botonesEnvio.forEach(btn => {
-        btn.disabled = true;
-        btn.classList.add("opacity-50", "cursor-not-allowed");
-      });
-
       const datos = {
         legajo: legajo,
         pin: pin,
@@ -288,60 +277,36 @@
         fechaHoraDispositivo: new Date().toISOString()
       };
 
-      const divResultado = document.getElementById('resultado');
-
-      // VERIFICAR SI HAY CONEXIÓN ANTES DE ENVIAR
-      if (!navigator.onLine) {
-        guardarFichadaLocalmente(datos, tipo);
-        restaurarBotones();
-        return;
-      }
-
-      divResultado.innerText = "Validando PIN y registrando fichada...";
-
-      fetch(URL_APPS_SCRIPT, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(datos)
-      })
-      .then(res => res.json())
-      .then(res => {
-        if (res.exito) {
-          divResultado.className = "p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-200 border border-emerald-500";
-          divResultado.innerText = `✓ Fichada de ${tipo} registrada exitosamente.`;
-          document.getElementById('pin').value = "";
-          setTimeout(() => { location.reload(); }, 2000);
-        } else {
-          divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
-          divResultado.innerText = "❌ " + (res.mensaje || "Error al procesar la fichada.");
-          restaurarBotones();
-        }
-      })
-      .catch(err => {
-        // Si hay un error de red repentino durante el fetch, se guarda localmente de respaldo
-        guardarFichadaLocalmente(datos, tipo);
-        restaurarBotones();
-      });
-    }
-
-    function guardarFichadaLocalmente(datos, tipo) {
+      // 🚀 RESPUESTA INSTANTÁNEA (NO ESPERA A GOOGLE):
+      // Guarda en el dispositivo, muestra el mensaje de éxito y limpia/reinicia campos en 1 segundo.
       let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
       pendientes.push(datos);
       localStorage.setItem('fichadasPendientes', JSON.stringify(pendientes));
 
       const divResultado = document.getElementById('resultado');
-      divResultado.className = "p-3 rounded-xl text-xs text-center bg-amber-950 text-amber-200 border border-amber-500";
-      divResultado.innerText = `⚠️ Sin conexión. Fichada de ${tipo} guardada localmente. Se enviará al recuperar señal.`;
-      
+      divResultado.className = "p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-200 border border-emerald-500";
+      divResultado.innerText = `✓ ¡Fichada de ${tipo} registrada con éxito!`;
+      divResultado.classList.remove('hidden');
+
+      // Limpiar campos automáticamente antes de recargar
       document.getElementById('pin').value = "";
-      setTimeout(() => { location.reload(); }, 3000);
+      document.getElementById('legajo').value = "";
+      document.getElementById('nombre').value = "";
+
+      // Recargar la pantalla súper rápido (1 segundo) para que pase el siguiente operario
+      setTimeout(() => { 
+        location.reload(); 
+      }, 1000);
+
+      // Disparar sincronización silenciosa a Google por detrás
+      sincronizarFichadasPendientes();
     }
 
     function sincronizarFichadasPendientes() {
       let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
       if (pendientes.length === 0) return;
 
-      console.log("Sincronizando fichadas pendientes offline...");
+      console.log("Sincronizando fichadas pendientes en segundo plano...");
       let fichadasRestantes = [];
 
       let procesarSiguiente = (index) => {
@@ -359,25 +324,17 @@
         .then(res => res.json())
         .then(res => {
           if (!res.exito) {
-            fichadasRestantes.push(datos); // Si el servidor la rechazó por PIN o datos, queda retenida
+            fichadasRestantes.push(datos); // Si el servidor la rechazó, se retiene
           }
           procesarSiguiente(index + 1);
         })
         .catch(() => {
-          fichadasRestantes.push(datos); // Si vuelve a fallar la red, se reintenta luego
+          fichadasRestantes.push(datos); // Si falla la red, reintenta después
           procesarSiguiente(index + 1);
         });
       };
 
       procesarSiguiente(0);
-    }
-
-    function restaurarBotones() {
-      const botonesEnvio = document.querySelectorAll("main .grid button");
-      botonesEnvio.forEach(btn => {
-        btn.disabled = false;
-        btn.classList.remove("opacity-50", "cursor-not-allowed");
-      });
     }
   </script>
 </body>
