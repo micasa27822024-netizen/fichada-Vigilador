@@ -216,7 +216,10 @@
       status.className = "text-xs text-emerald-400 text-center font-semibold";
     }
 
-    function procesarEnvio(tipo) {
+    function procesarEnvio(tipoRecibido) {
+      // 🛠️ FORZAR EXPLICITAMENTE A MAYÚSCULAS PARA EVITAR CUALQUIER ERROR DE TIPEÓ
+      const tipo = String(tipoRecibido).trim().toUpperCase();
+
       const legajo = document.getElementById('legajo').value.trim();
       const pin = document.getElementById('pin').value.trim();
       const nombre = document.getElementById('nombre').value.trim();
@@ -230,23 +233,6 @@
       if (!fotoBase64Global) {
         alert("Primero haga clic en 'CAPTURAR FOTO'.");
         return;
-      }
-
-      // 🛡️ FILTRO DE SEGURIDAD ESTRICTO PARA SALIDAS
-      if (tipo === 'SALIDA') {
-        let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
-        const marcacionesLegajo = pendientes.filter(f => String(f.legajo).trim() === String(legajo));
-
-        if (marcacionesLegajo.length > 0) {
-          marcacionesLegajo.sort((a, b) => new Date(a.fechaHoraDispositivo) - new Date(b.fechaHoraDispositivo));
-          const ultimaMarcacion = marcacionesLegajo[marcacionesLegajo.length - 1];
-
-          // Si el último movimiento registrado fue una SALIDA, bloqueamos la nueva salida
-          if (ultimaMarcacion.tipo === 'SALIDA') {
-            alert("Error: No puedes marcar salida porque el último movimiento registrado ya fue una SALIDA. Debes registrar una ENTRADA primero.");
-            return;
-          }
-        }
       }
 
       const divResultado = document.getElementById('resultado');
@@ -287,12 +273,14 @@
         pin: pin,
         nombre: nombre,
         objetivo: objetivo,
-        tipo: tipo, // <--- Respetará estrictamente 'ENTRADA' o 'SALIDA' según el botón pulsado
+        tipo: tipo, // <--- Envía estrictamente 'ENTRADA' o 'SALIDA' en mayúsculas
         latitud: lat,
         longitud: lng,
         fotoBase64: fotoBase64Global,
         fechaHoraDispositivo: new Date().toISOString()
       };
+
+      console.log("Enviando datos al servidor:", datos);
 
       // 🚀 RESPUESTA INSTANTÁNEA:
       let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
