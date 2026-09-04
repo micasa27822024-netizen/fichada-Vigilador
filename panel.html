@@ -507,7 +507,7 @@
     }
 
     // ==========================================
-    // CÁLCULO DE HORAS PARA EL SUPERVISOR
+    // CÁLCULO Y FORMATO DE HORAS PARA EL SUPERVISOR
     // ==========================================
     function calcularHoras(fechaInicioStr, fechaFinStr) {
       const inicio = new Date(fechaInicioStr);
@@ -539,6 +539,14 @@
       };
     }
 
+    // 🕒 FUNCIÓN PARA PASAR DE DECIMAL A FORMATO RELOJ (HH:MM)
+    function formatearAHorasReloj(horasDecimales) {
+      if (isNaN(horasDecimales) || horasDecimales <= 0) return "00:00 hs";
+      const horas = Math.floor(horasDecimales);
+      const minutos = Math.round((horasDecimales - horas) * 60);
+      return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')} hs`;
+    }
+
     function consultarHorasSupervisor() {
       const legajo = document.getElementById('legajoSupervisorInput').value.trim();
       if (!legajo) {
@@ -549,7 +557,6 @@
         return alert("Los datos aún se están cargando o no hay registros disponibles.");
       }
 
-      // Filtramos las marcaciones del legajo ingresado
       const marcacionesVigilador = datosLocales.filter(f => String(f[1]).trim() === legajo);
       
       if (marcacionesVigilador.length === 0) {
@@ -587,17 +594,17 @@
             <td class="p-3 text-xs font-mono">${new Date(entrada[0]).toLocaleString('es-AR', { hour12: false })}</td>
             <td class="p-3 text-xs font-mono">${salida ? new Date(salida[0]).toLocaleString('es-AR', { hour12: false }) : '<span class="text-amber-400">En Turno</span>'}</td>
             <td class="p-3 text-xs text-slate-300 font-medium">${objetivoNombre}</td>
-            <td class="p-3 text-center text-xs font-semibold text-amber-400">${horas.d.toFixed(2)} hs</td>
-            <td class="p-3 text-center text-xs font-semibold text-indigo-400">${horas.n.toFixed(2)} hs</td>
-            <td class="p-3 text-center text-xs font-bold text-emerald-400">${horas.t.toFixed(2)} hs</td>
+            <td class="p-3 text-center text-xs font-semibold text-amber-400">${formatearAHorasReloj(horas.d)}</td>
+            <td class="p-3 text-center text-xs font-semibold text-indigo-400">${formatearAHorasReloj(horas.n)}</td>
+            <td class="p-3 text-center text-xs font-bold text-emerald-400">${formatearAHorasReloj(horas.t)}</td>
           `;
           tabla.appendChild(tr);
         }
       }
 
-      document.getElementById('supHorasDiurnas').innerText = `${totalD.toFixed(2)} hs`;
-      document.getElementById('supHorasNocturnas').innerText = `${totalN.toFixed(2)} hs`;
-      document.getElementById('supHorasTotales').innerText = `${totalT.toFixed(2)} hs`;
+      document.getElementById('supHorasDiurnas').innerText = formatearAHorasReloj(totalD);
+      document.getElementById('supHorasNocturnas').innerText = formatearAHorasReloj(totalN);
+      document.getElementById('supHorasTotales').innerText = formatearAHorasReloj(totalT);
     }
 
     function actualizarMetricasYGraficos(registros) {
