@@ -329,6 +329,90 @@
       </div>
     </div>
   </div>
+  <!-- ========================================== -->
+<!-- SECCIÓN DE CONTROL DE HORAS (SUPERVISOR) -->
+<!-- ========================================== -->
+<div class="mt-8 pt-8 border-t border-slate-700 space-y-6">
+  
+  <!-- Tarjeta de Búsqueda de Legajo -->
+  <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+      <i class="fa-solid fa-user-shield text-emerald-500"></i> Control de Horas (Supervisor)
+    </h2>
+    <div class="flex gap-3">
+      <input type="text" id="legajoSupervisorInput" placeholder="Ingrese número de Legajo..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+      <button onclick="consultarHorasSupervisor()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition flex items-center gap-2 shadow-lg">
+        <i class="fa-solid fa-magnifying-glass"></i> Consultar
+      </button>
+    </div>
+  </div>
+
+  <!-- Controles ocultos inicialmente: Filtro de Mes y Botones de Exportación -->
+  <div id="controlesSupervisor" class="hidden bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-2">
+        <label class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-calendar-days text-emerald-400"></i> Filtrar Mes:</label>
+        <select id="supFiltroMes" onchange="aplicarFiltrosSupervisor()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+          <option value="todos">Todos los meses</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button onclick="exportarExcelSupervisor()" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow">
+        <i class="fa-solid fa-file-excel"></i> Exportar Excel
+      </button>
+      <button onclick="exportarPdfSupervisor()" class="bg-rose-700 hover:bg-rose-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow">
+        <i class="fa-solid fa-file-pdf"></i> Imprimir / PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Resultados y Resumen del Supervisor -->
+  <div id="resultadoSupervisor" class="hidden space-y-6">
+    
+    <!-- Tarjetas de Resumen de Horas -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl border-l-4 border-l-amber-500">
+        <p class="text-xs text-slate-400 font-medium">Horas Diurnas</p>
+        <h3 id="supHorasDiurnas" class="text-2xl font-bold text-white mt-1">00:00 hs</h3>
+      </div>
+      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl border-l-4 border-l-indigo-500">
+        <p class="text-xs text-slate-400 font-medium">Horas Nocturnas</p>
+        <h3 id="supHorasNocturnas" class="text-2xl font-bold text-white mt-1">00:00 hs</h3>
+      </div>
+      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl border-l-4 border-l-emerald-500">
+        <p class="text-xs text-slate-400 font-medium">Total de Horas</p>
+        <h3 id="supHorasTotales" class="text-2xl font-bold text-emerald-400 mt-1">00:00 hs</h3>
+      </div>
+    </div>
+
+    <!-- Tabla Detallada por Turno -->
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+      <div class="p-4 border-b border-slate-700">
+        <h3 class="font-bold text-white text-sm">Desglose de Turnos y Jornadas</h3>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-700">
+            <tr>
+              <th class="p-3">Entrada</th>
+              <th class="p-3">Salida</th>
+              <th class="p-3">Objetivo</th>
+              <th class="p-3 text-center">Diurnas</th>
+              <th class="p-3 text-center">Nocturnas</th>
+              <th class="p-3 text-center">Total</th>
+            </tr>
+          </thead>
+          <tbody id="supCuerpoDetalle" class="divide-y divide-slate-700/50">
+            <!-- Se llena mediante JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
 
  <script>
     // ==========================================
@@ -507,8 +591,10 @@
     }
 
     // ==========================================
-    // CÁLCULO Y FORMATO DE HORAS PARA EL SUPERVISOR
+    // CONTROL Y GESTIÓN DE HORAS DEL SUPERVISOR
     // ==========================================
+    let datosSupervisorGlobal = []; // Almacena las marcaciones del legajo consultado
+
     function calcularHoras(fechaInicioStr, fechaFinStr) {
       const inicio = new Date(fechaInicioStr);
       const fin = new Date(fechaFinStr);
@@ -523,7 +609,6 @@
         if (siguiente > fin) siguiente = new Date(fin.getTime());
 
         let hora = actual.getHours();
-        // Definición estándar nocturna: 21:00 a 06:00 hs
         if (hora >= 21 || hora < 6) {
           horasNocturnas += (siguiente - actual) / 3600000;
         } else {
@@ -539,7 +624,6 @@
       };
     }
 
-    // 🕒 FUNCIÓN PARA PASAR DE DECIMAL A FORMATO RELOJ (HH:MM)
     function formatearAHorasReloj(horasDecimales) {
       if (isNaN(horasDecimales) || horasDecimales <= 0) return "00:00 hs";
       const horas = Math.floor(horasDecimales);
@@ -565,8 +649,62 @@
         return;
       }
 
-      procesarYRenderizarSupervisor(marcacionesVigilador);
+      datosSupervisorGlobal = marcacionesVigilador;
+      poblarSelectMesesSupervisor(datosSupervisorGlobal);
+      aplicarFiltrosSupervisor();
+
       document.getElementById('resultadoSupervisor').classList.remove('hidden');
+      document.getElementById('controlesSupervisor').classList.remove('hidden');
+    }
+
+    function poblarSelectMesesSupervisor(datos) {
+      const selectMes = document.getElementById('supFiltroMes');
+      const mesActualSeleccionado = selectMes.value;
+      
+      const mesesSet = new Set();
+      datos.forEach(f => {
+        if(f[0]) {
+          const d = new Date(f[0]);
+          if(!isNaN(d)) {
+            const anio = d.getFullYear();
+            const mes = String(d.getMonth() + 1).padStart(2, '0');
+            mesesSet.add(`${anio}-${mes}`);
+          }
+        }
+      });
+
+      const mesesOrdenados = Array.from(mesesSet).sort().reverse();
+      selectMes.innerHTML = `<option value="todos">Todos los meses</option>`;
+      const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+      mesesOrdenados.forEach(m => {
+        const [anio, mesNum] = m.split('-');
+        const nombreMesTexto = `${nombresMeses[parseInt(mesNum) - 1]} ${anio}`;
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.innerText = nombreMesTexto;
+        selectMes.appendChild(opt);
+      });
+
+      if (mesesOrdenados.includes(mesActualSeleccionado)) {
+        selectMes.value = mesActualSeleccionado;
+      }
+    }
+
+    function aplicarFiltrosSupervisor() {
+      const mesFiltro = document.getElementById('supFiltroMes').value;
+      let filtrados = datosSupervisorGlobal;
+
+      if (mesFiltro !== 'todos') {
+        filtrados = filtrados.filter(f => {
+          const d = new Date(f[0]);
+          const anio = d.getFullYear();
+          const mes = String(d.getMonth() + 1).padStart(2, '0');
+          return `${anio}-${mes}` === mesFiltro;
+        });
+      }
+
+      procesarYRenderizarSupervisor(filtrados);
     }
 
     function procesarYRenderizarSupervisor(marcacionesVigilador) {
@@ -605,6 +743,34 @@
       document.getElementById('supHorasDiurnas').innerText = formatearAHorasReloj(totalD);
       document.getElementById('supHorasNocturnas').innerText = formatearAHorasReloj(totalN);
       document.getElementById('supHorasTotales').innerText = formatearAHorasReloj(totalT);
+    }
+
+    // 📥 FUNCIÓN PARA EXPORTAR A EXCEL (CSV)
+    function exportarExcelSupervisor() {
+      const legajo = document.getElementById('legajoSupervisorInput').value.trim();
+      const filas = document.querySelectorAll('#supCuerpoDetalle tr');
+      if (filas.length === 0) return alert("No hay datos para exportar.");
+
+      let csv = "Entrada;Salida;Objetivo;Diurnas;Nocturnas;Total\n";
+      filas.forEach(tr => {
+        const cols = tr.querySelectorAll('td');
+        const filaData = Array.from(cols).map(c => `"${c.innerText.replace(/[\n\r]+/g, "").trim()}"`).join(";");
+        csv += filaData + "\n";
+      });
+
+      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_Horas_Legajo_${legajo}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // 🖨️ FUNCIÓN PARA IMPRIMIR O GUARDAR COMO PDF
+    function exportarPdfSupervisor() {
+      window.print();
     }
 
     function actualizarMetricasYGraficos(registros) {
