@@ -119,7 +119,7 @@
     window.onload = function() {
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
         .then(stream => { document.getElementById('webcam').srcObject = stream; })
-        .catch(err => alert("Error al acceder a la cámara: " + err));
+        .catch(err => alert("Error al acceder à la cámara: " + err));
 
       cargarObjetivos();
       actualizarEstadoRed();
@@ -232,6 +232,27 @@
         return;
       }
 
+      // 🛡️ FILTRO DE SEGURIDAD: Evitar marcar salida si no hay entrada previa
+      if (tipo === 'SALIDA') {
+        let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
+        const marcacionesLegajo = pendientes.filter(f => String(f.legajo).trim() === String(legajo));
+
+        if (marcacionesLegajo.length > 0) {
+          // Ordenar de más antiguo a más reciente para ver el último movimiento
+          marcacionesLegajo.sort((a, b) => new Date(a.fechaHoraDispositivo) - new Date(b.fechaHoraDispositivo));
+          const ultimaMarcacion = marcacionesLegajo[marcacionesLegajo.length - 1];
+
+          if (ultimaMarcacion.tipo === 'SALIDA') {
+            alert("Error: No puedes marcar salida porque el último movimiento registrado ya fue una SALIDA. Debes registrar una ENTRADA primero.");
+            return;
+          }
+        } else {
+          // Si no hay registros locales recientes, advertimos de forma preventiva
+          const confirmarSalidaSinHistorial = confirm("Aviso: No se registran entradas previas recientes en este dispositivo para este legajo. ¿Deseas continuar de todas formas?");
+          if (!confirmarSalidaSinHistorial) return;
+        }
+      }
+
       const divResultado = document.getElementById('resultado');
       divResultado.className = "p-3 rounded-xl text-xs text-center bg-slate-700 text-white";
       divResultado.innerText = "Obteniendo ubicación GPS...";
@@ -278,7 +299,6 @@
       };
 
       // 🚀 RESPUESTA INSTANTÁNEA (NO ESPERA A GOOGLE):
-      // Guarda en el dispositivo, muestra el mensaje de éxito y limpia/reinicia campos en 1 segundo.
       let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
       pendientes.push(datos);
       localStorage.setItem('fichadasPendientes', JSON.stringify(pendientes));
@@ -293,7 +313,7 @@
       document.getElementById('legajo').value = "";
       document.getElementById('nombre').value = "";
 
-      // Recargar la pantalla súper rápido (1 segundo) para que pase el siguiente operario
+      // Recargar la pantalla súper rápido (1 segundo)
       setTimeout(() => { 
         location.reload(); 
       }, 1000);
