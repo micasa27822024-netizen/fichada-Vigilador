@@ -119,7 +119,7 @@
     window.onload = function() {
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
         .then(stream => { document.getElementById('webcam').srcObject = stream; })
-        .catch(err => alert("Error al acceder à la cámara: " + err));
+        .catch(err => alert("Error al acceder a la cámara: " + err));
 
       cargarObjetivos();
       actualizarEstadoRed();
@@ -232,24 +232,20 @@
         return;
       }
 
-      // 🛡️ FILTRO DE SEGURIDAD: Evitar marcar salida si no hay entrada previa
+      // 🛡️ FILTRO DE SEGURIDAD ESTRICTO PARA SALIDAS
       if (tipo === 'SALIDA') {
         let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
         const marcacionesLegajo = pendientes.filter(f => String(f.legajo).trim() === String(legajo));
 
         if (marcacionesLegajo.length > 0) {
-          // Ordenar de más antiguo a más reciente para ver el último movimiento
           marcacionesLegajo.sort((a, b) => new Date(a.fechaHoraDispositivo) - new Date(b.fechaHoraDispositivo));
           const ultimaMarcacion = marcacionesLegajo[marcacionesLegajo.length - 1];
 
+          // Si el último movimiento registrado fue una SALIDA, bloqueamos la nueva salida
           if (ultimaMarcacion.tipo === 'SALIDA') {
             alert("Error: No puedes marcar salida porque el último movimiento registrado ya fue una SALIDA. Debes registrar una ENTRADA primero.");
             return;
           }
-        } else {
-          // Si no hay registros locales recientes, advertimos de forma preventiva
-          const confirmarSalidaSinHistorial = confirm("Aviso: No se registran entradas previas recientes en este dispositivo para este legajo. ¿Deseas continuar de todas formas?");
-          if (!confirmarSalidaSinHistorial) return;
         }
       }
 
@@ -291,14 +287,14 @@
         pin: pin,
         nombre: nombre,
         objetivo: objetivo,
-        tipo: tipo,
+        tipo: tipo, // <--- Respetará estrictamente 'ENTRADA' o 'SALIDA' según el botón pulsado
         latitud: lat,
         longitud: lng,
         fotoBase64: fotoBase64Global,
         fechaHoraDispositivo: new Date().toISOString()
       };
 
-      // 🚀 RESPUESTA INSTANTÁNEA (NO ESPERA A GOOGLE):
+      // 🚀 RESPUESTA INSTANTÁNEA:
       let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
       pendientes.push(datos);
       localStorage.setItem('fichadasPendientes', JSON.stringify(pendientes));
@@ -313,12 +309,12 @@
       document.getElementById('legajo').value = "";
       document.getElementById('nombre').value = "";
 
-      // Recargar la pantalla súper rápido (1 segundo)
+      // Recargar la pantalla (1 segundo)
       setTimeout(() => { 
         location.reload(); 
       }, 1000);
 
-      // Disparar sincronización silenciosa a Google por detrás
+      // Sincronización silenciosa en segundo plano
       sincronizarFichadasPendientes();
     }
 
@@ -344,12 +340,12 @@
         .then(res => res.json())
         .then(res => {
           if (!res.exito) {
-            fichadasRestantes.push(datos); // Si el servidor la rechazó, se retiene
+            fichadasRestantes.push(datos);
           }
           procesarSiguiente(index + 1);
         })
         .catch(() => {
-          fichadasRestantes.push(datos); // Si falla la red, reintenta después
+          fichadasRestantes.push(datos);
           procesarSiguiente(index + 1);
         });
       };
