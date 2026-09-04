@@ -125,10 +125,7 @@
       actualizarEstadoRed();
     };
 
-    window.addEventListener('online', () => {
-      actualizarEstadoRed();
-      sincronizarFichadasPendientes();
-    });
+    window.addEventListener('online', actualizarEstadoRed);
     window.addEventListener('offline', actualizarEstadoRed);
 
     function actualizarEstadoRed() {
@@ -272,56 +269,50 @@
         pin: pin,
         nombre: nombre,
         objetivo: objetivo,
-        tipo: tipo, // Envía 'ENTRADA' o 'SALIDA' de manera dinámica y exacta
+        tipo: tipo, 
         latitud: lat,
         longitud: lng,
         fotoBase64: fotoBase64Global,
         fechaHoraDispositivo: new Date().toISOString()
       };
 
-      console.log("Enviando datos al servidor:", datos);
-
-      // Guardar en pendientes de respaldo de forma segura
-      let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
-      pendientes.push(datos);
-      localStorage.setItem('fichadasPendientes', JSON.stringify(pendientes));
-
       const divResultado = document.getElementById('resultado');
-      divResultado.className = "p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-200 border border-emerald-500";
-      divResultado.innerText = `✓ ¡Fichada de ${tipo} registrada con éxito!`;
+      divResultado.className = "p-3 rounded-xl text-xs text-center bg-slate-700 text-white";
+      divResultado.innerText = "Enviando fichada al servidor...";
       divResultado.classList.remove('hidden');
 
-      // Limpiar campos automáticamente
-      document.getElementById('pin').value = "";
-      document.getElementById('legajo').value = "";
-      document.getElementById('nombre').value = "";
+      // Enviamos la petición directamente al servidor y esperamos su respuesta real
+      fetch(URL_APPS_SCRIPT, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(datos)
+      })
+      .then(res => res.json())
+      .then(respuesta => {
+        if (respuesta.exito === true) {
+          // Éxito real validado por Google Apps Script
+          divResultado.className = "p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-200 border border-emerald-500";
+          divResultado.innerText = `✓ ¡Fichada de ${tipo} registrada con éxito!`;
+          
+          // Limpiar campos
+          document.getElementById('pin').value = "";
+          document.getElementById('legajo').value = "";
+          document.getElementById('nombre').value = "";
 
-      // Sincronización inmediata antes de recargar
-      sincronizarFichadasPendientes();
+          setTimeout(() => { 
+            location.reload(); 
+          }, 1500);
 
-      // Recargar la pantalla (1 segundo)
-      setTimeout(() => { 
-        location.reload(); 
-      }, 1000);
-    }
-
-    function sincronizarFichadasPendientes() {
-      let pendientes = JSON.parse(localStorage.getItem('fichadasPendientes') || '[]');
-      if (pendientes.length === 0) return;
-
-      console.log("Sincronizando fichadas pendientes...");
-      
-      // Limpiamos el almacenamiento local para evitar bucles de reenvíos erróneos
-      localStorage.removeItem('fichadasPendientes');
-
-      pendientes.forEach(datos => {
-        fetch(URL_APPS_SCRIPT, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify(datos)
-        })
-        .then(res => res.json())
-        .catch(err => console.error("Error sincronizando fichada:", err));
+        } else {
+          // El servidor rechazó la fichada (ej: doble entrada o PIN incorrecto)
+          divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
+          divResultado.innerText = respuesta.mensaje || "❌ Acción rechazada por el servidor.";
+        }
+      })
+      .catch(err => {
+        console.error("Error de red:", err);
+        divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
+        divResultado.innerText = "❌ Error de conexión al intentar fichar.";
       });
     }
   </script>
