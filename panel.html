@@ -330,7 +330,7 @@
     </div>
   </div>
 
-  <script>
+ <script>
     // ==========================================
     // CONFIGURACIÓN DE SEGURIDAD (CONTRASEÑA)
     // ==========================================
@@ -360,6 +360,19 @@
     function mostrarPanel() {
       document.getElementById('pantallaLogin').classList.add('hidden');
       document.getElementById('contenidoPanel').classList.remove('hidden');
+      
+      // 🚀 CARGA INSTÁNTDEA DESDE LA MEMORIA LOCAL
+      try {
+        const cachePanel = localStorage.getItem('cache_panel_marcaciones');
+        if (cachePanel) {
+          datosLocales = JSON.parse(cachePanel);
+          filtrarTabla();
+        }
+      } catch (e) {
+        console.error("Error al leer caché local del panel", e);
+      }
+
+      // Buscar datos frescos al servidor en segundo plano
       cargarDatos();
     }
 
@@ -390,17 +403,20 @@
         })
         .then(data => {
           datosLocales = data;
+          localStorage.setItem('cache_panel_marcaciones', JSON.stringify(data)); // Guardar en caché
           filtrarTabla();
         })
         .catch(err => {
           console.error(err);
-          document.getElementById('cuerpoTabla').innerHTML = `
-            <tr>
-              <td colspan="7" class="p-8 text-center text-rose-400">
-                <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
-                <p>Error al obtener registros. Revisa la conexión.</p>
-              </td>
-            </tr>`;
+          if (!datosLocales || datosLocales.length === 0) {
+            document.getElementById('cuerpoTabla').innerHTML = `
+              <tr>
+                <td colspan="7" class="p-8 text-center text-rose-400">
+                  <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
+                  <p>Error al obtener registros. Revisa la conexión.</p>
+                </td>
+              </tr>`;
+          }
         })
         .finally(() => {
           if (icono) icono.classList.remove('fa-spin');
@@ -797,5 +813,3 @@
       doc.save(`Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.pdf`);
     }
   </script>
-</body>
-</html>
