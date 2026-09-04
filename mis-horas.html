@@ -84,15 +84,15 @@
     <div id="resumenHoras" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
         <p class="text-xs text-slate-400 font-semibold">HORAS DIURNAS (06-21hs)</p>
-        <p id="horasDiurnas" class="text-2xl font-bold text-amber-400 mt-1">0.00 hs</p>
+        <p id="horasDiurnas" class="text-2xl font-bold text-amber-400 mt-1">00:00 hs</p>
       </div>
       <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
         <p class="text-xs text-slate-400 font-semibold">HORAS NOCTURNAS (21-06hs)</p>
-        <p id="horasNocturnas" class="text-2xl font-bold text-indigo-400 mt-1">0.00 hs</p>
+        <p id="horasNocturnas" class="text-2xl font-bold text-indigo-400 mt-1">00:00 hs</p>
       </div>
       <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
         <p class="text-xs text-slate-400 font-semibold">TOTAL TRABAJADO</p>
-        <p id="horasTotales" class="text-2xl font-bold text-emerald-400 mt-1">0.00 hs</p>
+        <p id="horasTotales" class="text-2xl font-bold text-emerald-400 mt-1">00:00 hs</p>
       </div>
     </div>
 
@@ -140,6 +140,21 @@
         document.getElementById('lblLegajoActivo').innerText = legajoGuardado;
         document.getElementById('btnCerrarSesion').classList.remove('hidden');
         
+        // 🚀 CARGA INSTÁNTDEA DESDE LA MEMORIA LOCAL SI EXISTE
+        try {
+          const cacheLocal = localStorage.getItem('cache_datos_vigiladores');
+          if (cacheLocal) {
+            const datos = JSON.parse(cacheLocal);
+            const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajoGuardado);
+            if (marcacionesVigilador.length > 0) {
+              procesarYRenderizar(marcacionesVigilador);
+            }
+          }
+        } catch (e) {
+          console.error("Error al leer caché local", e);
+        }
+
+        // Buscar datos frescos en segundo plano
         ejecutarConsulta(legajoGuardado);
         activarEscuchasInactividad();
         reiniciarTemporizador();
@@ -170,6 +185,14 @@
       return { d: diurnas, n: nocturnas, t: diurnas + nocturnas };
     }
 
+    // 🕒 FUNCIÓN PARA PASAR DE DECIMAL A FORMATO RELOJ (HH:MM)
+    function formatearAHorasReloj(horasDecimales) {
+      if (isNaN(horasDecimales) || horasDecimales <= 0) return "00:00 hs";
+      const horas = Math.floor(horasDecimales);
+      const minutos = Math.round((horasDecimales - horas) * 60);
+      return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')} hs`;
+    }
+
     function buscarMisHoras() {
       const legajo = document.getElementById('legajoInput').value.trim();
       const pin = document.getElementById('pinInput').value.trim();
@@ -181,6 +204,7 @@
       fetch(URL_APPS_SCRIPT)
         .then(res => res.json())
         .then(datos => {
+          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(datos)); // Guardar caché
           const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajo);
           
           if (marcacionesVigilador.length === 0) {
@@ -209,6 +233,7 @@
       fetch(URL_APPS_SCRIPT)
         .then(res => res.json())
         .then(datos => {
+          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(datos)); // Guardar caché
           const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajo);
           if (marcacionesVigilador.length > 0) {
             procesarYRenderizar(marcacionesVigilador);
@@ -242,17 +267,17 @@
             <td class="p-4 text-xs font-mono">${new Date(entrada[0]).toLocaleString('es-AR', { hour12: false })}</td>
             <td class="p-4 text-xs font-mono">${salida ? new Date(salida[0]).toLocaleString('es-AR', { hour12: false }) : '<span class="text-amber-400">En Turno</span>'}</td>
             <td class="p-4 text-xs text-slate-300 font-medium">${objetivoNombre}</td>
-            <td class="p-4 text-center text-xs font-semibold text-amber-400">${horas.d.toFixed(2)} hs</td>
-            <td class="p-4 text-center text-xs font-semibold text-indigo-400">${horas.n.toFixed(2)} hs</td>
-            <td class="p-4 text-center text-xs font-bold text-emerald-400">${horas.t.toFixed(2)} hs</td>
+            <td class="p-4 text-center text-xs font-semibold text-amber-400">${formatearAHorasReloj(horas.d)}</td>
+            <td class="p-4 text-center text-xs font-semibold text-indigo-400">${formatearAHorasReloj(horas.n)}</td>
+            <td class="p-4 text-center text-xs font-bold text-emerald-400">${formatearAHorasReloj(horas.t)}</td>
           `;
           tabla.appendChild(tr);
         }
       }
 
-      document.getElementById('horasDiurnas').innerText = `${totalD.toFixed(2)} hs`;
-      document.getElementById('horasNocturnas').innerText = `${totalN.toFixed(2)} hs`;
-      document.getElementById('horasTotales').innerText = `${totalT.toFixed(2)} hs`;
+      document.getElementById('horasDiurnas').innerText = formatearAHorasReloj(totalD);
+      document.getElementById('horasNocturnas').innerText = formatearAHorasReloj(totalN);
+      document.getElementById('horasTotales').innerText = formatearAHorasReloj(totalT);
 
       document.getElementById('resumenHoras').classList.remove('hidden');
       document.getElementById('contenedorTabla').classList.remove('hidden');
