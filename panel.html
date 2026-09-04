@@ -187,16 +187,43 @@
 
     </div>
 
-    <!-- NUEVO MÓDULO: CONSULTA DE HORAS POR VIGILADOR -->
+    <!-- MÓDULO OPTIMIZADO: CONSULTA Y GESTIÓN DE HORAS POR VIGILADOR -->
     <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
-      <h3 class="text-lg font-bold text-white flex items-center gap-2">
-        <i class="fa-solid fa-user-clock text-emerald-400"></i> Auditoría de Horas por Vigilador
-      </h3>
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-user-clock text-emerald-400"></i> Auditoría de Horas por Vigilador
+        </h3>
+        
+        <!-- CONTROLES EXTRA (Filtros y Exportación) - Ocultos hasta buscar un legajo -->
+        <div id="controlesSupervisor" class="hidden flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5">
+            <span class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-calendar-days text-emerald-400"></i> Mes:</span>
+            <select id="supFiltroMes" onchange="aplicarFiltrosSupervisor()" class="bg-slate-900 text-xs text-white focus:outline-none">
+              <option value="todos">Todos</option>
+            </select>
+          </div>
+          <button onclick="exportarExcelSupervisor()" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-file-excel"></i> Excel
+          </button>
+          <button onclick="exportarPdfSupervisor()" class="bg-rose-700 hover:bg-rose-600 text-white text-xs font-semibold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-file-pdf"></i> PDF
+          </button>
+        </div>
+      </div>
       
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div class="relative">
+      <!-- BUSCADOR Y FILTROS DE FECHA ESPECÍFICA -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="relative md:col-span-1">
           <i class="fa-solid fa-id-badge absolute left-3 top-3 text-slate-400 text-sm"></i>
-          <input type="text" id="legajoSupervisorInput" placeholder="N° de Legajo del Vigilador..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+          <input type="text" id="legajoSupervisorInput" placeholder="N° de Legajo..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+        </div>
+        <div class="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5">
+          <span class="text-xs text-slate-400">Desde:</span>
+          <input type="date" id="supFechaDesde" onchange="aplicarFiltrosSupervisor()" class="bg-slate-900 text-xs text-white focus:outline-none w-full">
+        </div>
+        <div class="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5">
+          <span class="text-xs text-slate-400">Hasta:</span>
+          <input type="date" id="supFechaHasta" onchange="aplicarFiltrosSupervisor()" class="bg-slate-900 text-xs text-white focus:outline-none w-full">
         </div>
         <button onclick="consultarHorasSupervisor()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg">
           <i class="fa-solid fa-magnifying-glass"></i> Consultar Horas
@@ -206,17 +233,17 @@
       <!-- Resultado de la consulta -->
       <div id="resultadoSupervisor" class="hidden space-y-4 pt-4 border-t border-slate-700">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 text-center">
-            <p class="text-xs text-slate-400 font-semibold">HORAS DIURNAS</p>
-            <p id="supHorasDiurnas" class="text-xl font-bold text-amber-400 mt-1">0.00 hs</p>
+          <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 text-center border-l-4 border-l-amber-500">
+            <p class="text-xs text-slate-400 font-semibold">HORAS DIURNAS (06-21hs)</p>
+            <p id="supHorasDiurnas" class="text-xl font-bold text-amber-400 mt-1">00:00 hs</p>
           </div>
-          <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 text-center">
-            <p class="text-xs text-slate-400 font-semibold">HORAS NOCTURNAS</p>
-            <p id="supHorasNocturnas" class="text-xl font-bold text-indigo-400 mt-1">0.00 hs</p>
+          <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 text-center border-l-4 border-l-indigo-500">
+            <p class="text-xs text-slate-400 font-semibold">HORAS NOCTURNAS (21-06hs)</p>
+            <p id="supHorasNocturnas" class="text-xl font-bold text-indigo-400 mt-1">00:00 hs</p>
           </div>
-          <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 text-center">
+          <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 text-center border-l-4 border-l-emerald-500">
             <p class="text-xs text-slate-400 font-semibold">TOTAL TRABAJADO</p>
-            <p id="supHorasTotales" class="text-xl font-bold text-emerald-400 mt-1">0.00 hs</p>
+            <p id="supHorasTotales" class="text-xl font-bold text-emerald-400 mt-1">00:00 hs</p>
           </div>
         </div>
 
@@ -239,7 +266,7 @@
       </div>
     </div>
 
-    <!-- FILTROS, BÚSQUEDA Y EXPORTACIÓN -->
+    <!-- FILTROS, BÚSQUEDA Y EXPORTACIÓN GENERAL -->
     <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col lg:flex-row gap-4 justify-between items-center">
       
       <!-- Búsqueda por texto -->
@@ -330,8 +357,7 @@
     </div>
   </div>
 
-
- <script>
+  <script>
     // ==========================================
     // CONFIGURACIÓN DE SEGURIDAD (CONTRASEÑA)
     // ==========================================
@@ -361,19 +387,6 @@
     function mostrarPanel() {
       document.getElementById('pantallaLogin').classList.add('hidden');
       document.getElementById('contenidoPanel').classList.remove('hidden');
-      
-      // 🚀 CARGA INSTÁNTDEA DESDE LA MEMORIA LOCAL
-      try {
-        const cachePanel = localStorage.getItem('cache_panel_marcaciones');
-        if (cachePanel) {
-          datosLocales = JSON.parse(cachePanel);
-          filtrarTabla();
-        }
-      } catch (e) {
-        console.error("Error al leer caché local del panel", e);
-      }
-
-      // Buscar datos frescos al servidor en segundo plano
       cargarDatos();
     }
 
@@ -389,6 +402,7 @@
     
     let datosLocales = [];
     let datosFiltradosActuales = [];
+    let datosSupervisorGlobal = [];
 
     let instChartDona = null;
     let instChartBarras = null;
@@ -404,20 +418,17 @@
         })
         .then(data => {
           datosLocales = data;
-          localStorage.setItem('cache_panel_marcaciones', JSON.stringify(data)); // Guardar en caché
           filtrarTabla();
         })
         .catch(err => {
           console.error(err);
-          if (!datosLocales || datosLocales.length === 0) {
-            document.getElementById('cuerpoTabla').innerHTML = `
-              <tr>
-                <td colspan="7" class="p-8 text-center text-rose-400">
-                  <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
-                  <p>Error al obtener registros. Revisa la conexión.</p>
-                </td>
-              </tr>`;
-          }
+          document.getElementById('cuerpoTabla').innerHTML = `
+            <tr>
+              <td colspan="7" class="p-8 text-center text-rose-400">
+                <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
+                <p>Error al obtener registros. Revisa la conexión.</p>
+              </td>
+            </tr>`;
         })
         .finally(() => {
           if (icono) icono.classList.remove('fa-spin');
@@ -508,10 +519,8 @@
     }
 
     // ==========================================
-    // CONTROL Y GESTIÓN DE HORAS DEL SUPERVISOR
+    // CÁLCULO Y GESTIÓN DE HORAS DEL SUPERVISOR
     // ==========================================
-    let datosSupervisorGlobal = []; // Almacena las marcaciones del legajo consultado
-
     function calcularHoras(fechaInicioStr, fechaFinStr) {
       const inicio = new Date(fechaInicioStr);
       const fin = new Date(fechaFinStr);
@@ -526,6 +535,7 @@
         if (siguiente > fin) siguiente = new Date(fin.getTime());
 
         let hora = actual.getHours();
+        // Definición estándar nocturna: 21:00 a 06:00 hs
         if (hora >= 21 || hora < 6) {
           horasNocturnas += (siguiente - actual) / 3600000;
         } else {
@@ -563,6 +573,7 @@
       if (marcacionesVigilador.length === 0) {
         alert("No se encontraron registros para el legajo especificado.");
         document.getElementById('resultadoSupervisor').classList.add('hidden');
+        document.getElementById('controlesSupervisor').classList.add('hidden');
         return;
       }
 
@@ -610,14 +621,29 @@
 
     function aplicarFiltrosSupervisor() {
       const mesFiltro = document.getElementById('supFiltroMes').value;
+      const valDesde = document.getElementById('supFechaDesde').value;
+      const valHasta = document.getElementById('supFechaHasta').value;
+
       let filtrados = datosSupervisorGlobal;
 
+      // Filtro por Mes
       if (mesFiltro !== 'todos') {
         filtrados = filtrados.filter(f => {
           const d = new Date(f[0]);
           const anio = d.getFullYear();
           const mes = String(d.getMonth() + 1).padStart(2, '0');
           return `${anio}-${mes}` === mesFiltro;
+        });
+      }
+
+      // Filtro por Rango de Fechas específico
+      if (valDesde || valHasta) {
+        filtrados = filtrados.filter(f => {
+          if (!f[0]) return false;
+          const fechaIsoFila = new Date(f[0]).toISOString().slice(0, 10);
+          if (valDesde && fechaIsoFila < valDesde) return false;
+          if (valHasta && fechaIsoFila > valHasta) return false;
+          return true;
         });
       }
 
@@ -662,7 +688,6 @@
       document.getElementById('supHorasTotales').innerText = formatearAHorasReloj(totalT);
     }
 
-    // 📥 FUNCIÓN PARA EXPORTAR A EXCEL (CSV)
     function exportarExcelSupervisor() {
       const legajo = document.getElementById('legajoSupervisorInput').value.trim();
       const filas = document.querySelectorAll('#supCuerpoDetalle tr');
@@ -685,9 +710,44 @@
       document.body.removeChild(a);
     }
 
-    // 🖨️ FUNCIÓN PARA IMPRIMIR O GUARDAR COMO PDF
     function exportarPdfSupervisor() {
-      window.print();
+      const legajo = document.getElementById('legajoSupervisorInput').value.trim();
+      const filas = document.querySelectorAll('#supCuerpoDetalle tr');
+      if (filas.length === 0) return alert("No hay datos para exportar.");
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text(`Reporte de Horas - Legajo: ${legajo}`, 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Generado el: ${new Date().toLocaleString('es-AR', { hour12: false })}`, 14, 22);
+
+      const columnas = ["Entrada", "Salida", "Objetivo", "Diurnas", "Nocturnas", "Total"];
+      const datosTabla = [];
+      
+      filas.forEach(tr => {
+        const cols = tr.querySelectorAll('td');
+        datosTabla.push([
+          cols[0].innerText,
+          cols[1].innerText,
+          cols[2].innerText,
+          cols[3].innerText,
+          cols[4].innerText,
+          cols[5].innerText
+        ]);
+      });
+
+      doc.autoTable({
+        head: [columnas],
+        body: datosTabla,
+        startY: 28,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 8 }
+      });
+
+      doc.save(`Reporte_Horas_Legajo_${legajo}.pdf`);
     }
 
     function actualizarMetricasYGraficos(registros) {
@@ -903,3 +963,5 @@
       doc.save(`Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.pdf`);
     }
   </script>
+</body>
+</html>
