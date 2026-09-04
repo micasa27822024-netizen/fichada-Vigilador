@@ -531,11 +531,10 @@
       let actual = new Date(inicio.getTime());
 
       while (actual < fin) {
-        let siguiente = new Date(actual.getTime() + 60000); // Avanzar de a 1 minuto
+        let siguiente = new Date(actual.getTime() + 60000); 
         if (siguiente > fin) siguiente = new Date(fin.getTime());
 
         let hora = actual.getHours();
-        // Definición estándar nocturna: 21:00 a 06:00 hs
         if (hora >= 21 || hora < 6) {
           horasNocturnas += (siguiente - actual) / 3600000;
         } else {
@@ -626,7 +625,6 @@
 
       let filtrados = datosSupervisorGlobal;
 
-      // Filtro por Mes
       if (mesFiltro !== 'todos') {
         filtrados = filtrados.filter(f => {
           const d = new Date(f[0]);
@@ -636,7 +634,6 @@
         });
       }
 
-      // Filtro por Rango de Fechas específico
       if (valDesde || valHasta) {
         filtrados = filtrados.filter(f => {
           if (!f[0]) return false;
@@ -715,13 +712,34 @@
       const filas = document.querySelectorAll('#supCuerpoDetalle tr');
       if (filas.length === 0) return alert("No hay datos para exportar.");
 
+      let nombreApellido = "No especificado";
+      if (datosSupervisorGlobal && datosSupervisorGlobal.length > 0) {
+        nombreApellido = datosSupervisorGlobal[0][2] || "No especificado";
+      }
+
+      const horasDiurnasTotal = document.getElementById('supHorasDiurnas').innerText;
+      const horasNocturnasTotal = document.getElementById('supHorasNocturnas').innerText;
+      const horasTotalesGeneral = document.getElementById('supHorasTotales').innerText;
+
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
 
-      doc.setFontSize(16);
-      doc.text(`Reporte de Horas - Legajo: ${legajo}`, 14, 15);
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.text("VGA Security 24 S.A. - Reporte de Horas por Vigilador", 14, 15);
+
       doc.setFontSize(10);
-      doc.text(`Generado el: ${new Date().toLocaleString('es-AR', { hour12: false })}`, 14, 22);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Fecha de emisión: ${new Date().toLocaleString('es-AR', { hour12: false })}`, 14, 22);
+
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Legajo: ${legajo}`, 14, 31);
+      doc.text(`Nombre y Apellido: ${nombreApellido}`, 14, 37);
+
+      doc.text(`Total Horas Diurnas: ${horasDiurnasTotal}`, 120, 31);
+      doc.text(`Total Horas Nocturnas: ${horasNocturnasTotal}`, 120, 37);
+      doc.text(`Total General del Periodo: ${horasTotalesGeneral}`, 120, 43);
 
       const columnas = ["Entrada", "Salida", "Objetivo", "Diurnas", "Nocturnas", "Total"];
       const datosTabla = [];
@@ -741,7 +759,7 @@
       doc.autoTable({
         head: [columnas],
         body: datosTabla,
-        startY: 28,
+        startY: 48,
         theme: 'grid',
         headStyles: { fillColor: [15, 23, 42] },
         styles: { fontSize: 8 }
