@@ -278,7 +278,7 @@
     </div>
   </div>
 
-  <script>
+ <script>
     const PASSWORD_ADMIN = "admin123"; 
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxAHmmBC3pEoBOuUzO8k0ul7micGbcnUKbo0eA45XfcQr76rc1voJBsyk1xYhCd0B9TEw/exec";
 
@@ -318,6 +318,30 @@
     function mostrarAdmin() {
       document.getElementById('pantallaLoginAdmin').classList.add('hidden');
       document.getElementById('contenidoAdmin').classList.remove('hidden');
+      
+      // 🚀 CARGA INSTÁNTNEA DESDE LA MEMORIA LOCAL (Para que no espere a Google)
+      try {
+        const cacheMarcaciones = localStorage.getItem('cache_marcaciones');
+        const cachePersonal = localStorage.getItem('cache_personal');
+        const cacheObjetivos = localStorage.getItem('cache_objetivos');
+
+        if (cacheMarcaciones) {
+          datosMarcaciones = JSON.parse(cacheMarcaciones);
+          filtrarTablaMarcaciones();
+        }
+        if (cachePersonal) {
+          datosPersonal = JSON.parse(cachePersonal);
+          renderizarTablaPersonal(datosPersonal);
+        }
+        if (cacheObjetivos) {
+          datosObjetivos = JSON.parse(cacheObjetivos);
+          renderizarTablaObjetivos(datosObjetivos);
+        }
+      } catch (e) {
+        console.error("Error al leer caché local", e);
+      }
+
+      // Buscar datos frescos al servidor en segundo plano
       recargarDatosEfectivo();
     }
 
@@ -351,26 +375,35 @@
       const icono = document.getElementById('icono-reload');
       if (icono) icono.classList.add('fa-spin');
 
+      // 1. Cargar Marcaciones
       fetch(URL_APPS_SCRIPT)
         .then(res => res.json())
         .then(data => {
           datosMarcaciones = data;
+          localStorage.setItem('cache_marcaciones', JSON.stringify(data));
           filtrarTablaMarcaciones();
-        });
+        })
+        .catch(err => console.error("Error cargando marcaciones", err));
 
+      // 2. Cargar Personal
       fetch(`${URL_APPS_SCRIPT}?tipo=personal`)
         .then(res => res.json())
         .then(data => {
           datosPersonal = data;
+          localStorage.setItem('cache_personal', JSON.stringify(data));
           renderizarTablaPersonal(data);
-        });
+        })
+        .catch(err => console.error("Error cargando personal", err));
 
+      // 3. Cargar Objetivos
       fetch(`${URL_APPS_SCRIPT}?tipo=objetivos`)
         .then(res => res.json())
         .then(data => {
           datosObjetivos = data;
+          localStorage.setItem('cache_objetivos', JSON.stringify(data));
           renderizarTablaObjetivos(data);
         })
+        .catch(err => console.error("Error cargando objetivos", err))
         .finally(() => {
           if (icono) icono.classList.remove('fa-spin');
         });
@@ -712,5 +745,3 @@
       doc.save(`Reporte_Marcaciones_${new Date().toISOString().slice(0,10)}.pdf`);
     }
   </script>
-</body>
-</html>
