@@ -117,14 +117,10 @@
     let fotoBase64Global = "";
 
     window.onload = function() {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-        .then(stream => { document.getElementById('webcam').srcObject = stream; })
-        .catch(err => alert("Error al acceder a la cámara: " + err));
-
+      iniciarCamaraSegura();
       cargarObjetivos();
       actualizarEstadoRed();
       
-      // Intentar sincronizar fichadas pendientes si hay internet al iniciar
       if (navigator.onLine) {
         sincronizarFichadasPendientes();
       }
@@ -136,6 +132,23 @@
     });
     
     window.addEventListener('offline', actualizarEstadoRed);
+
+    function iniciarCamaraSegura() {
+      const status = document.getElementById('foto-status');
+      
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+          .then(stream => { 
+            document.getElementById('webcam').srcObject = stream; 
+          })
+          .catch(err => {
+            console.warn("No se pudo iniciar la cámara automáticamente: ", err);
+            status.innerText = "⚠️ Cámara pausada o sin permisos (pulse Capturar Foto)";
+          });
+      } else {
+        status.innerText = "⚠️ Su navegador no soporta el acceso a la cámara";
+      }
+    }
 
     function actualizarEstadoRed() {
       const indicador = document.getElementById('estadoRed');
@@ -150,7 +163,6 @@
     }
 
     function cargarObjetivos() {
-      // Si estamos offline, usar un valor por defecto para no bloquear la pantalla
       if (!navigator.onLine) {
         document.getElementById('objetivo').innerHTML = '<option value="Puesto General">Puesto General (Modo Offline)</option>';
         return;
@@ -220,6 +232,23 @@
       const preview = document.getElementById('preview');
       const status = document.getElementById('foto-status');
 
+      // Si la cámara no inició por falta de stream previo, intentamos activarla al momento de capturar
+      if (!video.srcObject && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+          .then(stream => {
+            video.srcObject = stream;
+            setTimeout(() => realizarCapturaCanvas(video, canvas, preview, status), 300);
+          })
+          .catch(err => {
+            alert("No se pudo acceder a la cámara. Verifique los permisos del navegador.");
+          });
+        return;
+      }
+
+      realizarCapturaCanvas(video, canvas, preview, status);
+    }
+
+    function realizarCapturaCanvas(video, canvas, preview, status) {
       canvas.width = video.videoWidth || 320;
       canvas.height = video.videoHeight || 240;
       
@@ -299,7 +328,6 @@
 
       const divResultado = document.getElementById('resultado');
 
-      // Si el navegador detecta que estamos offline, guardamos directamente local sin intentar el fetch
       if (!navigator.onLine) {
         guardarFichadaOffline(datos, tipo);
         return;
@@ -335,7 +363,6 @@
       })
       .catch(err => {
         console.warn("Fallo de red al enviar. Guardando offline automáticamente...", err);
-        // Si el fetch falla por corte repentino de internet, respaldamos localmente
         guardarFichadaOffline(datos, tipo);
       });
     }
@@ -383,7 +410,6 @@
             console.log("🔄 Todas las fichadas pendientes fueron sincronizadas con éxito.");
           }
         } else {
-          // Si el servidor rechaza una fichada pendiente por regla de negocio, igual la sacamos para no trabar la cola
           pendientes.shift();
           localStorage.setItem('fichadas_pendientes', JSON.stringify(pendientes));
           if (pendientes.length > 0) sincronizarFichadasPendientes();
