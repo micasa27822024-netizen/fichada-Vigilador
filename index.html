@@ -410,7 +410,7 @@
       document.getElementById('legajo-status').className = "text-xs mt-1 hidden";
       document.getElementById('legajo-status').innerText = "";
       
-      // Limpiar previsualización de foto para la siguiente marcación
+      // Limpiar previsualización de foto y reiniciar la cámara en vivo
       fotoBase64Global = "";
       const preview = document.getElementById('preview');
       preview.src = "";
@@ -419,6 +419,9 @@
       const statusFoto = document.getElementById('foto-status');
       statusFoto.innerText = "⚠️ Foto no capturada";
       statusFoto.className = "text-xs text-rose-400 text-center font-semibold";
+
+      // Reactivar el flujo de video de la cámara
+      iniciarCamaraSegura();
     }
 
     function sincronizarFichadasPendientes() {
