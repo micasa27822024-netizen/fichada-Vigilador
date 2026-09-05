@@ -163,33 +163,55 @@
     }
 
     function cargarObjetivos() {
-      if (!navigator.onLine) {
-        document.getElementById('objetivo').innerHTML = '<option value="Puesto General">Puesto General (Modo Offline)</option>';
-        return;
+      const selectObj = document.getElementById('objetivo');
+      
+      // 1. Intentar recuperar la lista de objetivos guardada previamente en la memoria del celular
+      let objetivosGuardados = JSON.parse(localStorage.getItem('vga_lista_objetivos') || '[]');
+
+      if (objetivosGuardados.length > 0) {
+        poblarSelectObjetivos(objetivosGuardados);
       }
 
-      fetch(`${URL_APPS_SCRIPT}?tipo=objetivos`)
-        .then(res => res.json())
-        .then(data => {
-          const selectObj = document.getElementById('objetivo');
-          selectObj.innerHTML = '<option value="">Seleccione un Objetivo</option>';
-          if (Array.isArray(data) && data.length > 0) {
-            data.forEach(item => {
-              const nombreObj = item[1] || item[0];
-              if (nombreObj) {
-                const opt = document.createElement('option');
-                opt.value = nombreObj;
-                opt.textContent = nombreObj;
-                selectObj.appendChild(opt);
+      // 2. Si hay internet, buscar la lista actualizada del servidor y actualizar el caché local
+      if (navigator.onLine) {
+        fetch(`${URL_APPS_SCRIPT}?tipo=objetivos`)
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data) && data.length > 0) {
+              let listaNuevos = [];
+              data.forEach(item => {
+                const nombreObj = item[1] || item[0];
+                if (nombreObj) listaNuevos.push(nombreObj);
+              });
+              
+              if (listaNuevos.length > 0) {
+                localStorage.setItem('vga_lista_objetivos', JSON.stringify(listaNuevos));
+                poblarSelectObjetivos(listaNuevos);
               }
-            });
-          } else {
-            selectObj.innerHTML = '<option value="Puesto General">Puesto General</option>';
-          }
-        })
-        .catch(() => {
-          document.getElementById('objetivo').innerHTML = '<option value="Puesto General">Puesto General</option>';
-        });
+            }
+          })
+          .catch(err => console.warn("No se pudieron actualizar los objetivos online:", err));
+      } else if (objetivosGuardados.length === 0) {
+        // Si estamos offline y nunca se guardó la lista, poner al menos una opción genérica editable o un aviso
+        selectObj.innerHTML = '<option value="Don Pedro Hurlingham">Don Pedro Hurlingham (Modo Offline)</option><option value="Puesto General">Puesto General</option>';
+      }
+    }
+
+    function poblarSelectObjetivos(lista) {
+      const selectObj = document.getElementById('objetivo');
+      let ultimoElegido = localStorage.getItem('vga_ultimo_objetivo') || '';
+      
+      selectObj.innerHTML = '<option value="">Seleccione un Objetivo</option>';
+      
+      lista.forEach(nombreObj => {
+        const opt = document.createElement('option');
+        opt.value = nombreObj;
+        opt.textContent = nombreObj;
+        if (nombreObj === ultimoElegido) {
+          opt.selected = true;
+        }
+        selectObj.appendChild(opt);
+      });
     }
 
     function validarLegajo() {
@@ -232,7 +254,6 @@
       const preview = document.getElementById('preview');
       const status = document.getElementById('foto-status');
 
-      // Si la cámara no inició por falta de stream previo, intentamos activarla al momento de capturar
       if (!video.srcObject && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
           .then(stream => {
@@ -275,6 +296,9 @@
         alert("Por favor complete su N° de Legajo, PIN de Seguridad y seleccione un Objetivo.");
         return;
       }
+
+      // Guardar el objetivo seleccionado en la memoria local para recordarlo la próxima vez
+      localStorage.setItem('vga_ultimo_objetivo', objetivo);
 
       if (!fotoBase64Global) {
         alert("Primero haga clic en 'CAPTURAR FOTO'.");
