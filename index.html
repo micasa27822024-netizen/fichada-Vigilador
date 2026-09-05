@@ -115,6 +115,7 @@
   <script>
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw9dkxtfMbpeyWXks-wlzQCuo6Die3tFaUdZlEryuuoLgnnwHXGKkh5E92RBFACyc6Dag/exec";
     let fotoBase64Global = "";
+    let estaSincronizando = false; // Control de bloqueo para evitar ejecuciones concurrentes
 
     window.onload = function() {
       iniciarCamaraSegura();
@@ -410,7 +411,6 @@
       document.getElementById('legajo-status').className = "text-xs mt-1 hidden";
       document.getElementById('legajo-status').innerText = "";
       
-      // Limpiar previsualización de foto y reiniciar la cámara en vivo
       fotoBase64Global = "";
       const preview = document.getElementById('preview');
       preview.src = "";
@@ -420,17 +420,19 @@
       statusFoto.innerText = "⚠️ Foto no capturada";
       statusFoto.className = "text-xs text-rose-400 text-center font-semibold";
 
-      // Reactivar el flujo de video de la cámara
       iniciarCamaraSegura();
     }
 
     function sincronizarFichadasPendientes() {
+      if (estaSincronizando) return; // Evita ejecución simultánea
       let pendientes = JSON.parse(localStorage.getItem('fichadas_pendientes') || '[]');
       if (pendientes.length === 0) return;
 
       if (!navigator.onLine) return;
 
-      let datos = pendientes[0];
+      estaSincronizando = true;
+      let datos = pendientes.shift(); // Quitamos el elemento de la lista *antes* de enviarlo para que un reintento no lo duplique
+      localStorage.setItem('fichadas_pendientes', JSON.stringify(pendientes));
 
       fetch(URL_APPS_SCRIPT, {
         method: "POST",
@@ -439,17 +441,21 @@
       })
       .then(res => res.json())
       .then(respuesta => {
-        pendientes.shift();
-        localStorage.setItem('fichadas_pendientes', JSON.stringify(pendientes));
+        estaSincronizando = false;
+        console.log("🔄 Fichada pendiente sincronizada con éxito.");
         
+        // Si quedaron más pendientes, seguimos procesando
         if (pendientes.length > 0) {
           sincronizarFichadasPendientes();
-        } else {
-          console.log("🔄 Todas las fichadas pendientes fueron sincronizadas con éxito.");
         }
       })
       .catch(err => {
-        console.error("Error al sincronizar fichada pendiente, se reintentará más tarde.", err);
+        console.error("Error al sincronizar fichada pendiente, devolviéndola a la cola...", err);
+        // Si falla la red, devolvemos el ítem al inicio de la cola para reintentar luego
+        let actualizadas = JSON.parse(localStorage.getItem('fichadas_pendientes') || '[]');
+        actualizadas.unshift(datos);
+        localStorage.setItem('fichadas_pendientes', JSON.stringify(actualizadas));
+        estaSincronizando = false;
       });
     }
   </script>
