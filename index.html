@@ -164,15 +164,12 @@
 
     function cargarObjetivos() {
       const selectObj = document.getElementById('objetivo');
-      
-      // 1. Intentar recuperar la lista de objetivos guardada previamente en la memoria del celular
       let objetivosGuardados = JSON.parse(localStorage.getItem('vga_lista_objetivos') || '[]');
 
       if (objetivosGuardados.length > 0) {
         poblarSelectObjetivos(objetivosGuardados);
       }
 
-      // 2. Si hay internet, buscar la lista actualizada del servidor y actualizar el caché local
       if (navigator.onLine) {
         fetch(`${URL_APPS_SCRIPT}?tipo=objetivos`)
           .then(res => res.json())
@@ -192,7 +189,6 @@
           })
           .catch(err => console.warn("No se pudieron actualizar los objetivos online:", err));
       } else if (objetivosGuardados.length === 0) {
-        // Si estamos offline y nunca se guardó la lista, poner al menos una opción genérica editable o un aviso
         selectObj.innerHTML = '<option value="Don Pedro Hurlingham">Don Pedro Hurlingham (Modo Offline)</option><option value="Puesto General">Puesto General</option>';
       }
     }
@@ -297,7 +293,6 @@
         return;
       }
 
-      // Guardar el objetivo seleccionado en la memoria local para recordarlo la próxima vez
       localStorage.setItem('vga_ultimo_objetivo', objetivo);
 
       if (!fotoBase64Global) {
@@ -347,7 +342,7 @@
         latitud: lat,
         longitud: lng,
         fotoBase64: fotoBase64Global,
-        fechaHoraDispositivo: new Date().toISOString()
+        fechaHoraDispositivo: new Date().toISOString() // Captura el momento exacto en que se realiza la marcación
       };
 
       const divResultado = document.getElementById('resultado');
@@ -424,7 +419,8 @@
       })
       .then(res => res.json())
       .then(respuesta => {
-        if (respuesta.exito === true) {
+        if (respuesta.exito === true || respuesta.exito === false) {
+          // Independientemente de la respuesta, si ya procesó o descartó la pendiente local, avanzamos la cola
           pendientes.shift();
           localStorage.setItem('fichadas_pendientes', JSON.stringify(pendientes));
           
@@ -433,10 +429,6 @@
           } else {
             console.log("🔄 Todas las fichadas pendientes fueron sincronizadas con éxito.");
           }
-        } else {
-          pendientes.shift();
-          localStorage.setItem('fichadas_pendientes', JSON.stringify(pendientes));
-          if (pendientes.length > 0) sincronizarFichadasPendientes();
         }
       })
       .catch(err => {
