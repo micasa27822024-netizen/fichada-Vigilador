@@ -342,13 +342,13 @@
         latitud: lat,
         longitud: lng,
         fotoBase64: fotoBase64Global,
-        fechaHoraDispositivo: new Date().toISOString() // Captura el momento exacto en que se realiza la marcación
+        fechaHoraDispositivo: new Date().toISOString()
       };
 
       const divResultado = document.getElementById('resultado');
 
       if (!navigator.onLine) {
-        guardarFichadaOffline(datos, tipo);
+        guardarFichadaOffline(datos, tipo, legajo);
         return;
       }
 
@@ -382,12 +382,25 @@
       })
       .catch(err => {
         console.warn("Fallo de red al enviar. Guardando offline automáticamente...", err);
-        guardarFichadaOffline(datos, tipo);
+        guardarFichadaOffline(datos, tipo, legajo);
       });
     }
 
-    function guardarFichadaOffline(datos, tipo) {
+    function guardarFichadaOffline(datos, tipo, legajo) {
       let pendientes = JSON.parse(localStorage.getItem('fichadas_pendientes') || '[]');
+
+      // Validación anti-duplicados offline: verificamos si la última fichada guardada en la cola
+      // pertenece al mismo legajo y tiene exactamente el mismo tipo (ej: intentar hacer doble salida)
+      if (pendientes.length > 0) {
+        let ultimaPendiente = pendientes[pendientes.length - 1];
+        if (ultimaPendiente.legajo === legajo && ultimaPendiente.tipo === tipo) {
+          const divResultado = document.getElementById('resultado');
+          divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
+          divResultado.innerText = `❌ Ya tienes una fichada de ${tipo} pendiente de sincronización. No puedes registrar dos veces seguidas lo mismo.`;
+          return; // Detenemos el guardado duplicado
+        }
+      }
+
       pendientes.push(datos);
       localStorage.setItem('fichadas_pendientes', JSON.stringify(pendientes));
 
@@ -419,16 +432,15 @@
       })
       .then(res => res.json())
       .then(respuesta => {
-        if (respuesta.exito === true || respuesta.exito === false) {
-          // Independientemente de la respuesta, si ya procesó o descartó la pendiente local, avanzamos la cola
-          pendientes.shift();
-          localStorage.setItem('fichadas_pendientes', JSON.stringify(pendientes));
-          
-          if (pendientes.length > 0) {
-            sincronizarFichadasPendientes();
-          } else {
-            console.log("🔄 Todas las fichadas pendientes fueron sincronizadas con éxito.");
-          }
+        // Independientemente de si el servidor la acepta o la rechaza por duplicado, 
+        // sacamos la petición vieja de la cola local para que no vuelva a insistir.
+        pendientes.shift();
+        localStorage.setItem('fichadas_pendientes', JSON.stringify(pendientes));
+        
+        if (pendientes.length > 0) {
+          sincronizarFichadasPendientes();
+        } else {
+          console.log("🔄 Todas las fichadas pendientes fueron sincronizadas con éxito.");
         }
       })
       .catch(err => {
