@@ -396,9 +396,10 @@
     }
 
     // ==========================================
-    // LÓGICA DE DATOS Y DASHBOARD
+    // LÓGICA DE DATOS Y DASHBOARD (FIREBASE + SHEETS)
     // ==========================================
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw9dkxtfMbpeyWXks-wlzQCuo6Die3tFaUdZlEryuuoLgnnwHXGKkh5E92RBFACyc6Dag/exec";
+    const URL_FIREBASE = "https://vga-security-24-default-rtdb.firebaseio.com/fichadas.json";
     
     let datosLocales = [];
     let datosFiltradosActuales = [];
@@ -407,32 +408,51 @@
     let instChartDona = null;
     let instChartBarras = null;
 
-    function cargarDatos() {
+    async function cargarDatos() {
       const icono = document.getElementById('icono-reload');
       if (icono) icono.classList.add('fa-spin');
 
-      fetch(URL_APPS_SCRIPT, { redirect: "follow" })
-        .then(res => {
-          if (!res.ok) throw new Error("Error en la respuesta del servidor");
-          return res.json();
-        })
-        .then(data => {
-          datosLocales = data;
-          filtrarTabla();
-        })
-        .catch(err => {
-          console.error(err);
-          document.getElementById('cuerpoTabla').innerHTML = `
-            <tr>
-              <td colspan="7" class="p-8 text-center text-rose-400">
-                <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
-                <p>Error al obtener registros. Revisa la conexión.</p>
-              </td>
-            </tr>`;
-        })
-        .finally(() => {
-          if (icono) icono.classList.remove('fa-spin');
-        });
+      try {
+        // Consultamos simultáneamente Google Sheets y Firebase
+        const [resSheets, resFirebase] = await Promise.all([
+          fetch(URL_APPS_SCRIPT, { redirect: "follow" }).then(res => res.ok ? res.json() : []),
+          fetch(URL_FIREBASE).then(res => res.ok ? res.json() : null)
+        ]);
+
+        let fichadasFirebaseArray = [];
+        if (resFirebase) {
+          fichadasFirebaseArray = Object.keys(resFirebase).map(key => {
+            const item = resFirebase[key];
+            return [
+              item.fechaHoraDispositivo || item.fecha || item.timestamp,
+              item.legajo,
+              item.nombre,
+              item.objetivo,
+              item.tipo,
+              item.mapa || item.urlMapa || `https://www.google.com/maps?q=${item.latitud},${item.longitud}`,
+              item.foto || item.urlFoto || item.fotoBase64 || ''
+            ];
+          });
+        }
+
+        // Unimos el historial de Sheets con las nuevas de Firebase
+        const combinados = [...(Array.isArray(resSheets) ? resSheets : []), ...fichadasFirebaseArray];
+
+        datosLocales = combinados;
+        filtrarTabla();
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('cuerpoTabla').innerHTML = `
+          <tr>
+            <td colspan="7" class="p-8 text-center text-rose-400">
+              <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
+              <p>Error al obtener registros. Revisa la conexión.</p>
+            </td>
+          </tr>`;
+      } finally {
+        if (icono) icono.classList.remove('fa-spin');
+      }
     }
 
     function renderizarTabla(registros) {
@@ -468,7 +488,7 @@
              </a>`
           : `<span class="text-xs text-slate-500">Sin GPS</span>`;
 
-        const btnFoto = (urlFoto && urlFoto.includes('http'))
+        const btnFoto = (urlFoto && (urlFoto.includes('http') || urlFoto.includes('data:image')))
           ? `<button onclick="abrirFoto('${urlFoto}')" class="inline-flex items-center gap-1 bg-amber-600/20 text-amber-400 hover:bg-amber-600/40 border border-amber-500/30 px-3 py-1 rounded-lg text-xs font-semibold transition">
               <i class="fa-solid fa-image"></i> Ver Foto
              </button>`
@@ -906,6 +926,7 @@
 
     function obtenerUrlDirectaFoto(url) {
       if (!url) return '';
+      if (url.startsWith('data:image')) return url;
       const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
       if (match && match[1]) {
         return `https://lh3.googleusercontent.com/d/${match[1]}`;
@@ -916,7 +937,7 @@
     function abrirFoto(url) {
       const urlDirecta = obtenerUrlDirectaFoto(url);
       document.getElementById('imgModal').src = urlDirecta;
-      document.getElementById('btnDriveDirecto').href = url;
+      document.getElementById('btnDriveDirecto').href = url.startsWith('data:image') ? '#' : url;
       document.getElementById('modalFoto').classList.remove('hidden');
     }
 
