@@ -283,7 +283,7 @@
           <table class="w-full text-left text-sm text-slate-300">
             <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-700">
               <tr>
-                <th class="p-4">ID / Código</th>
+                <th class="p-4">ID / Clave</th>
                 <th class="p-4">Nombre del Objetivo</th>
                 <th class="p-4 text-center">Estado</th>
                 <th class="p-4 text-center">Acciones</th>
@@ -309,17 +309,12 @@
       <div class="w-full h-80 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center relative">
         <img id="imgModal" src="" alt="Foto Adjunta" class="w-full h-full object-contain">
       </div>
-      <div class="text-right">
-        <a id="btnDriveDirecto" href="#" target="_blank" class="text-xs text-amber-400 hover:underline inline-flex items-center gap-1">
-          <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir directamente en Drive
-        </a>
-      </div>
     </div>
   </div>
 
   <script>
     const PASSWORD_ADMIN = "admin123"; 
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw9dkxtfMbpeyWXks-wlzQCuo6Die3tFaUdZlEryuuoLgnnwHXGKkh5E92RBFACyc6Dag/exec";
+    const URL_FIREBASE = "https://vga-security-24-default-rtdb.firebaseio.com";
 
     let datosMarcaciones = [];
     let datosNovedades = [];
@@ -359,33 +354,6 @@
     function mostrarAdmin() {
       document.getElementById('pantallaLoginAdmin').classList.add('hidden');
       document.getElementById('contenidoAdmin').classList.remove('hidden');
-      
-      try {
-        const cacheMarcaciones = localStorage.getItem('cache_marcaciones');
-        const cacheNovedades = localStorage.getItem('cache_novedades');
-        const cachePersonal = localStorage.getItem('cache_personal');
-        const cacheObjetivos = localStorage.getItem('cache_objetivos');
-
-        if (cacheMarcaciones) {
-          datosMarcaciones = JSON.parse(cacheMarcaciones);
-          filtrarTablaMarcaciones();
-        }
-        if (cacheNovedades) {
-          datosNovedades = JSON.parse(cacheNovedades);
-          filtrarTablaNovedades();
-        }
-        if (cachePersonal) {
-          datosPersonal = JSON.parse(cachePersonal);
-          renderizarTablaPersonal(datosPersonal);
-        }
-        if (cacheObjetivos) {
-          datosObjetivos = JSON.parse(cacheObjetivos);
-          renderizarTablaObjetivos(datosObjetivos);
-        }
-      } catch (e) {
-        console.error("Error al leer caché local", e);
-      }
-
       recargarDatosEfectivo();
     }
 
@@ -420,52 +388,70 @@
       }
     }
 
-    function recargarDatosEfectivo() {
+    // CARGA DE DATOS DESDE FIREBASE REALTIME DATABASE
+    async function recargarDatosEfectivo() {
       const icono = document.getElementById('icono-reload');
       if (icono) icono.classList.add('fa-spin');
 
-      // 1. Cargar Marcaciones
-      fetch(URL_APPS_SCRIPT)
-        .then(res => res.json())
-        .then(data => {
-          datosMarcaciones = data;
-          localStorage.setItem('cache_marcaciones', JSON.stringify(data));
-          filtrarTablaMarcaciones();
-        })
-        .catch(err => console.error("Error cargando marcaciones", err));
+      try {
+        // 1. Cargar Marcaciones
+        const resMarcaciones = await fetch(`${URL_FIREBASE}/fichadas.json`);
+        const dataMarcaciones = await resMarcaciones.json();
+        datosMarcaciones = [];
+        if (dataMarcaciones) {
+          Object.keys(dataMarcaciones).forEach(id => {
+            const d = dataMarcaciones[id];
+            const fecha = d.fechaHoraDispositivo || d.timestamp || '';
+            const mapaUrl = (d.latitud && d.longitud) ? `https://maps.google.com/?q=${d.latitud},${d.longitud}` : '';
+            datosMarcaciones.push([fecha, d.legajo, d.nombre, d.objetivo, d.tipo, mapaUrl, d.fotoBase64 || '']);
+          });
+        }
+        filtrarTablaMarcaciones();
 
-      // 2. Cargar Novedades
-      fetch(`${URL_APPS_SCRIPT}?tipo=novedades`)
-        .then(res => res.json())
-        .then(data => {
-          datosNovedades = data;
-          localStorage.setItem('cache_novedades', JSON.stringify(data));
-          filtrarTablaNovedades();
-        })
-        .catch(err => console.error("Error cargando novedades", err));
+        // 2. Cargar Novedades
+        const resNovedades = await fetch(`${URL_FIREBASE}/novedades.json`);
+        const dataNovedades = await resNovedades.json();
+        datosNovedades = [];
+        if (dataNovedades) {
+          Object.keys(dataNovedades).forEach(id => {
+            const d = dataNovedades[id];
+            const fecha = d.fechaHoraDispositivo || d.timestamp || '';
+            const mapaUrl = (d.latitud && d.longitud) ? `https://maps.google.com/?q=${d.latitud},${d.longitud}` : '';
+            datosNovedades.push([fecha, d.legajo, d.nombre, d.objetivo, d.tipoIncidencia || 'General', d.descripcion || '', mapaUrl, d.fotoBase64 || '']);
+          });
+        }
+        filtrarTablaNovedades();
 
-      // 3. Cargar Personal
-      fetch(`${URL_APPS_SCRIPT}?tipo=personal`)
-        .then(res => res.json())
-        .then(data => {
-          datosPersonal = data;
-          localStorage.setItem('cache_personal', JSON.stringify(data));
-          renderizarTablaPersonal(data);
-        })
-        .catch(err => console.error("Error cargando personal", err));
+        // 3. Cargar Personal
+        const resPersonal = await fetch(`${URL_FIREBASE}/personal.json`);
+        const dataPersonal = await resPersonal.json();
+        datosPersonal = [];
+        if (dataPersonal) {
+          Object.keys(dataPersonal).forEach(id => {
+            const d = dataPersonal[id];
+            datosPersonal.push([d.legajo, d.nombre, 'Vigilador', d.pin, d.estado || 'ACTIVO', id]);
+          });
+        }
+        renderizarTablaPersonal(datosPersonal);
 
-      // 4. Cargar Objetivos
-      fetch(`${URL_APPS_SCRIPT}?tipo=objetivos`)
-        .then(res => res.json())
-        .then(data => {
-          datosObjetivos = data;
-          localStorage.setItem('cache_objetivos', JSON.stringify(data));
-          renderizarTablaObjetivos(data);
-        })
-        .catch(err => console.error("Error cargando objetivos", err))
-        .finally(() => {
-          if (icono) icono.classList.remove('fa-spin');
-        });
+        // 4. Cargar Objetivos
+        const resObjetivos = await fetch(`${URL_FIREBASE}/objetivos.json`);
+        const dataObjetivos = await resObjetivos.json();
+        datosObjetivos = [];
+        if (dataObjetivos) {
+          Object.keys(dataObjetivos).forEach(id => {
+            const d = dataObjetivos[id];
+            const nombreObj = typeof d === 'string' ? d : (d.nombre || id);
+            datosObjetivos.push([id, nombreObj, '', 'ACTIVO']);
+          });
+        }
+        renderizarTablaObjetivos(datosObjetivos);
+
+      } catch (err) {
+        console.error("Error al sincronizar con Firebase:", err);
+      } finally {
+        if (icono) icono.classList.remove('fa-spin');
+      }
     }
 
     function renderizarTablaMarcaciones(registros) {
@@ -473,7 +459,7 @@
       cuerpo.innerHTML = "";
 
       if (!registros || registros.length === 0) {
-        cuerpo.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400">No hay registros cargados aún.</td></tr>`;
+        cuerpo.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400">No hay registros cargados aún en Firebase.</td></tr>`;
         return;
       }
 
@@ -498,7 +484,7 @@
              </a>`
           : `<span class="text-xs text-slate-500">Sin GPS</span>`;
 
-        const btnFoto = (urlFoto && urlFoto.includes('http'))
+        const btnFoto = (urlFoto && urlFoto.length > 50)
           ? `<button onclick="abrirFoto('${urlFoto}')" class="inline-flex items-center gap-1 bg-amber-600/20 text-amber-400 hover:bg-amber-600/40 border border-amber-500/30 px-3 py-1 rounded-lg text-xs font-semibold transition">
               <i class="fa-solid fa-image"></i> Ver Foto
              </button>`
@@ -563,7 +549,7 @@
              </a>`
           : `<span class="text-xs text-slate-500">Sin GPS</span>`;
 
-        const btnFoto = (urlFoto && urlFoto.includes('http'))
+        const btnFoto = (urlFoto && urlFoto.length > 50)
           ? `<button onclick="abrirFoto('${urlFoto}')" class="inline-flex items-center gap-1 bg-amber-600/20 text-amber-400 hover:bg-amber-600/40 border border-amber-500/30 px-3 py-1 rounded-lg text-xs font-semibold transition">
               <i class="fa-solid fa-image"></i> Ver Foto
              </button>`
@@ -606,6 +592,7 @@
 
       registros.forEach(fila => {
         const legajoStr = String(fila[0]);
+        const firebaseId = fila[5];
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-700/30 transition";
         tr.innerHTML = `
@@ -614,7 +601,7 @@
           <td class="p-4 text-center font-mono text-slate-400">${fila[3] || '****'}</td>
           <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">${fila[4] || 'ACTIVO'}</span></td>
           <td class="p-4 text-center">
-            <button onclick="eliminarVigilador('${legajoStr}')" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/40 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1" title="Eliminar Vigilador">
+            <button onclick="eliminarVigilador('${firebaseId}')" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/40 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1" title="Eliminar Vigilador">
               <i class="fa-solid fa-trash"></i> Eliminar
             </button>
           </td>
@@ -623,7 +610,7 @@
       });
     }
 
-    function guardarVigilador(e) {
+    async function guardarVigilador(e) {
       e.preventDefault();
       const btn = document.getElementById('btnGuardarGuardia');
       btn.disabled = true;
@@ -631,67 +618,48 @@
 
       const pinGenerado = document.getElementById('newPin').value;
       const legajoIngresado = document.getElementById('newLegajo').value.trim();
+      const nombreIngresado = document.getElementById('newNombre').value.trim();
 
-      const payload = {
-        tipoAccion: "AGREGAR_EMPLEADO",
+      const nuevoPersonal = {
         legajo: legajoIngresado,
-        nombre: document.getElementById('newNombre').value,
-        pin: pinGenerado
+        nombre: nombreIngresado,
+        pin: pinGenerado,
+        estado: 'ACTIVO',
+        timestamp: new Date().toISOString()
       };
 
-      fetch(URL_APPS_SCRIPT, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(res => {
-        if (res.exito) {
-          alert(`${res.mensaje || "Vigilador registrado con éxito."}\nPIN asignado: ${res.pinGenerado || pinGenerado}`);
-          document.getElementById('newLegajo').value = "";
-          document.getElementById('newNombre').value = "";
-          generarPinAleatorio();
-          recargarDatosEfectivo();
-        } else {
-          alert("Error: " + res.mensaje);
-        }
-      })
-      .catch(err => {
+      try {
+        const res = await fetch(`${URL_FIREBASE}/personal.json`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(nuevoPersonal)
+        });
+
+        if (!res.ok) throw new Error("No se pudo guardar en Firebase");
+
+        alert(`Vigilador registrado con éxito.\nPIN asignado: ${pinGenerado}`);
+        document.getElementById('newLegajo').value = "";
+        document.getElementById('newNombre').value = "";
+        generarPinAleatorio();
+        recargarDatosEfectivo();
+      } catch (err) {
         alert("Ocurrió un error al guardar: " + err.toString());
-      })
-      .finally(() => {
+      } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Guardar Personal`;
-      });
+      }
     }
 
-    function eliminarVigilador(legajo) {
-      if (!confirm(`¿Estás seguro de que deseas eliminar al vigilador con legajo ${legajo}?`)) {
-        return;
-      }
+    async function eliminarVigilador(firebaseId) {
+      if (!confirm(`¿Estás seguro de que deseas eliminar este vigilador?`)) return;
 
-      const payload = {
-        tipoAccion: "ELIMINAR_EMPLEADO",
-        legajo: legajo
-      };
-
-      fetch(URL_APPS_SCRIPT, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(res => {
-        if (res.exito) {
-          alert(res.mensaje || "Vigilador eliminado con éxito.");
-          recargarDatosEfectivo();
-        } else {
-          alert("Error: " + res.mensaje);
-        }
-      })
-      .catch(err => {
+      try {
+        await fetch(`${URL_FIREBASE}/personal/${firebaseId}.json`, { method: "DELETE" });
+        alert("Vigilador eliminado con éxito.");
+        recargarDatosEfectivo();
+      } catch (err) {
         alert("Ocurrió un error al eliminar: " + err.toString());
-      });
+      }
     }
 
     function renderizarTablaObjetivos(registros) {
@@ -704,16 +672,16 @@
       }
 
       registros.forEach(fila => {
-        const idObj = fila[0] || 'OBJ';
-        const nombreObj = fila[1] || fila[0];
+        const firebaseId = fila[0];
+        const nombreObj = fila[1];
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-700/30 transition";
         tr.innerHTML = `
-          <td class="p-4 font-mono text-xs text-slate-400">${idObj}</td>
+          <td class="p-4 font-mono text-xs text-slate-400">${firebaseId}</td>
           <td class="p-4 font-medium text-white">${nombreObj}</td>
-          <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">${fila[3] || 'ACTIVO'}</span></td>
+          <td class="p-4 text-center"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs">ACTIVO</span></td>
           <td class="p-4 text-center">
-            <button onclick="eliminarObjetivo('${idObj}')" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/40 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1" title="Eliminar Objetivo">
+            <button onclick="eliminarObjetivo('${firebaseId}')" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/40 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1" title="Eliminar Objetivo">
               <i class="fa-solid fa-trash"></i> Eliminar
             </button>
           </td>
@@ -722,83 +690,48 @@
       });
     }
 
-    function guardarObjetivo(e) {
+    async function guardarObjetivo(e) {
       e.preventDefault();
       const btn = document.getElementById('btnGuardarObj');
       btn.disabled = true;
       btn.innerText = "Guardando...";
 
-      const payload = {
-        tipoAccion: "AGREGAR_OBJETIVO",
-        nombre: document.getElementById('newObjetivo').value
-      };
+      const nombreObj = document.getElementById('newObjetivo').value.trim();
 
-      fetch(URL_APPS_SCRIPT, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(res => {
-        if (res.exito) {
-          alert(res.mensaje || "Objetivo registrado con éxito.");
-          document.getElementById('newObjetivo').value = "";
-          recargarDatosEfectivo();
-        } else {
-          alert("Error: " + res.mensaje);
-        }
-      })
-      .catch(err => {
-        alert("Ocurrió un error al guardar: " + err.toString());
-      })
-      .finally(() => {
+      try {
+        const res = await fetch(`${URL_FIREBASE}/objetivos.json`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nombre: nombreObj, estado: 'ACTIVO', timestamp: new Date().toISOString() })
+        });
+
+        if (!res.ok) throw new Error("Error al guardar en Firebase");
+
+        alert("Objetivo registrado con éxito.");
+        document.getElementById('newObjetivo').value = "";
+        recargarDatosEfectivo();
+      } catch (err) {
+        alert("Ocurrió un error al guardar el objetivo: " + err.toString());
+      } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-plus"></i> Añadir Objetivo`;
-      });
+      }
     }
 
-    function eliminarObjetivo(id) {
-      if (!confirm(`¿Estás seguro de que deseas eliminar este objetivo (${id})?`)) {
-        return;
-      }
+    async function eliminarObjetivo(firebaseId) {
+      if (!confirm(`¿Estás seguro de que deseas eliminar este objetivo?`)) return;
 
-      const payload = {
-        tipoAccion: "ELIMINAR_OBJETIVO",
-        id: id
-      };
-
-      fetch(URL_APPS_SCRIPT, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(res => {
-        if (res.exito) {
-          alert(res.mensaje || "Objetivo eliminado con éxito.");
-          recargarDatosEfectivo();
-        } else {
-          alert("Error: " + res.mensaje);
-        }
-      })
-      .catch(err => {
+      try {
+        await fetch(`${URL_FIREBASE}/objetivos/${firebaseId}.json`, { method: "DELETE" });
+        alert("Objetivo eliminado con éxito.");
+        recargarDatosEfectivo();
+      } catch (err) {
         alert("Ocurrió un error al eliminar: " + err.toString());
-      });
-    }
-
-    function obtenerUrlDirectaFoto(url) {
-      if (!url) return '';
-      const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-      if (match && match[1]) {
-        return `https://lh3.googleusercontent.com/d/${match[1]}`;
       }
-      return url;
     }
 
-    function abrirFoto(url) {
-      const urlDirecta = obtenerUrlDirectaFoto(url);
-      document.getElementById('imgModal').src = urlDirecta;
-      document.getElementById('btnDriveDirecto').href = url;
+    function abrirFoto(base64) {
+      document.getElementById('imgModal').src = base64;
       document.getElementById('modalFoto').classList.remove('hidden');
     }
 
@@ -812,15 +745,14 @@
         return alert("No hay datos visibles para exportar.");
       }
 
-      const cabeceras = [["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo", "Ubicación (Mapa)", "Foto URL"]];
+      const cabeceras = [["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo", "Ubicación (Mapa)"]];
       const filas = datosFiltradosMarcaciones.map(f => [
         f[0] ? new Date(f[0]).toLocaleString('es-AR', { hour12: false }) : '',
         f[1] !== undefined ? String(f[1]) : '',
         f[2] || '',
         f[3] || '',
         f[4] || '',
-        f[5] || '',
-        f[6] || ''
+        f[5] || ''
       ]);
 
       const wb = XLSX.utils.book_new();
@@ -869,7 +801,7 @@
         return alert("No hay datos visibles para exportar.");
       }
 
-      const cabeceras = [["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo Incidencia", "Descripción", "Ubicación (Mapa)", "Foto URL"]];
+      const cabeceras = [["Fecha y Hora", "Legajo", "Nombre", "Objetivo", "Tipo Incidencia", "Descripción", "Ubicación (Mapa)"]];
       const filas = registrosAExportar.map(f => [
         f[0] ? new Date(f[0]).toLocaleString('es-AR', { hour12: false }) : '',
         f[1] !== undefined ? String(f[1]) : '',
@@ -877,8 +809,7 @@
         f[3] || '',
         f[4] || '',
         f[5] || '',
-        f[6] || '',
-        f[7] || ''
+        f[6] || ''
       ]);
 
       const wb = XLSX.utils.book_new();
