@@ -430,7 +430,6 @@
       let objetivoActual = "Objetivo Asignado";
 
       if (datosVigiladorGlobal.length > 0) {
-        // Ordenamos cronológicamente por las dudas
         let ordenadas = [...datosVigiladorGlobal].sort((a, b) => new Date(a[0]) - new Date(b[0]));
         let ultimaMar = ordenadas[ordenadas.length - 1];
         
@@ -441,7 +440,7 @@
       }
 
       if (!enServicio) {
-        alert("❌ No se puede enviar el informe: Actualmente se encuentra fuera de servicio (debe tener una Entra activa / En Turno).");
+        alert("❌ No se puede enviar el informe: Actualmente se encuentra fuera de servicio (debe tener una Entrada activa / En Turno).");
         return;
       }
 
