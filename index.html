@@ -272,13 +272,61 @@
       
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // --- FILTRO DE SEGURIDAD EN EL NAVEGADOR (ANTI-FRAUDE RÁPIDO) ---
+      const analisis = validarSelfieReal(canvas);
+      if (!analisis.valido) {
+        status.innerText = analisis.mensaje;
+        status.className = "text-xs text-rose-400 text-center font-semibold";
+        preview.classList.add('hidden');
+        fotoBase64Global = "";
+        return;
+      }
+      // ----------------------------------------------------------------
       
-      fotoBase64Global = canvas.toDataURL('image/jpeg', 0.6);
+      fotoBase64Global = canvas.toDataURL('image/jpeg', 0.5);
       
       preview.src = fotoBase64Global;
       preview.classList.remove('hidden');
-      status.innerText = "✓ Foto capturada correctamente";
+      status.innerText = "✓ Selfie válida capturada con éxito";
       status.className = "text-xs text-emerald-400 text-center font-semibold";
+    }
+
+    function validarSelfieReal(canvasFuente) {
+      const canvasCheck = document.createElement('canvas');
+      const ctxCheck = canvasCheck.getContext('2d');
+      canvasCheck.width = 100;
+      canvasCheck.height = 100;
+      ctxCheck.drawImage(canvasFuente, 0, 0, 100, 100);
+      
+      const imgData = ctxCheck.getImageData(0, 0, 100, 100);
+      const data = imgData.data;
+      
+      let sumaBrillo = 0;
+      let variacionColor = 0;
+      
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i+1];
+        const b = data[i+2];
+        sumaBrillo += (r + g + b) / 3;
+        variacionColor += Math.abs(r - g) + Math.abs(g - b);
+      }
+      
+      const brilloPromedio = sumaBrillo / (data.length / 4);
+      const promedioVariacion = variacionColor / (data.length / 4);
+      
+      // Control de oscuridad total o sobreexposición (foto tapada o al cielo directo)
+      if (brilloPromedio < 20 || brilloPromedio > 235) {
+        return { valido: false, mensaje: "⚠️ Foto rechazada: Demasiado oscura o clara. Apunte directo a su rostro." };
+      }
+      
+      // Control de superficies planas uniformes (paredes o cielo sin rasgos de relieve)
+      if (promedioVariacion < 8) {
+        return { valido: false, mensaje: "⚠️ Foto rechazada: No se detecta un rostro natural. Evite fotografiar objetos o cielo." };
+      }
+      
+      return { valido: true, mensaje: "OK" };
     }
 
     function procesarEnvio(tipoRecibido) {
@@ -297,7 +345,7 @@
       localStorage.setItem('vga_ultimo_objetivo', objetivo);
 
       if (!fotoBase64Global) {
-        alert("Primero haga clic en 'CAPTURAR FOTO'.");
+        alert("Primero capture una selfie válida haciendo clic en 'CAPTURAR FOTO'.");
         return;
       }
 
@@ -329,7 +377,7 @@
           divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
           divResultado.innerText = "❌ Permiso de GPS denegado o no disponible. Activa la ubicación en tu dispositivo.";
         },
-        { timeout: 7000, enableHighAccuracy: true }
+        { timeout: 5000, enableHighAccuracy: true }
       );
     }
 
@@ -354,7 +402,7 @@
       }
 
       divResultado.className = "p-3 rounded-xl text-xs text-center bg-slate-700 text-white";
-      divResultado.innerText = "Enviando fichada al servidor...";
+      divResultado.innerText = "Registrando fichada...";
       divResultado.classList.remove('hidden');
 
       fetch(URL_APPS_SCRIPT, {
@@ -424,14 +472,14 @@
     }
 
     function sincronizarFichadasPendientes() {
-      if (estaSincronizando) return; // Evita ejecución simultánea
+      if (estaSincronizando) return; 
       let pendientes = JSON.parse(localStorage.getItem('fichadas_pendientes') || '[]');
       if (pendientes.length === 0) return;
 
       if (!navigator.onLine) return;
 
       estaSincronizando = true;
-      let datos = pendientes.shift(); // Quitamos el elemento de la lista *antes* de enviarlo para que un reintento no lo duplique
+      let datos = pendientes.shift(); 
       localStorage.setItem('fichadas_pendientes', JSON.stringify(pendientes));
 
       fetch(URL_APPS_SCRIPT, {
@@ -444,14 +492,12 @@
         estaSincronizando = false;
         console.log("🔄 Fichada pendiente sincronizada con éxito.");
         
-        // Si quedaron más pendientes, seguimos procesando
         if (pendientes.length > 0) {
           sincronizarFichadasPendientes();
         }
       })
       .catch(err => {
         console.error("Error al sincronizar fichada pendiente, devolviéndola a la cola...", err);
-        // Si falla la red, devolvemos el ítem al inicio de la cola para reintentar luego
         let actualizadas = JSON.parse(localStorage.getItem('fichadas_pendientes') || '[]');
         actualizadas.unshift(datos);
         localStorage.setItem('fichadas_pendientes', JSON.stringify(actualizadas));
