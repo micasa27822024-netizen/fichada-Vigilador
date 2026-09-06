@@ -323,11 +323,12 @@
               <th class="p-4 text-center">Tipo</th>
               <th class="p-4 text-center">Ubicación</th>
               <th class="p-4 text-center">Foto</th>
+              <th class="p-4 text-center">Acción</th>
             </tr>
           </thead>
           <tbody id="cuerpoTabla" class="divide-y divide-slate-700/50">
             <tr>
-              <td colspan="7" class="p-8 text-center text-slate-400">
+              <td colspan="8" class="p-8 text-center text-slate-400">
                 <i class="fa-solid fa-spinner fa-spin text-2xl text-emerald-500 mb-2"></i>
                 <p>Cargando información...</p>
               </td>
@@ -404,6 +405,7 @@
     let datosLocales = [];
     let datosFiltradosActuales = [];
     let datosSupervisorGlobal = [];
+    let firebaseKeysMap = {}; // Guarda la relación de los índices con los IDs de Firebase
 
     let instChartDona = null;
     let instChartBarras = null;
@@ -413,17 +415,18 @@
       if (icono) icono.classList.add('fa-spin');
 
       try {
-        // Consultamos simultáneamente Google Sheets y Firebase
         const [resSheets, resFirebase] = await Promise.all([
           fetch(URL_APPS_SCRIPT, { redirect: "follow" }).then(res => res.ok ? res.json() : []),
           fetch(URL_FIREBASE).then(res => res.ok ? res.json() : null)
         ]);
 
         let fichadasFirebaseArray = [];
+        firebaseKeysMap = {}; // Reiniciamos el mapa
+
         if (resFirebase) {
-          fichadasFirebaseArray = Object.keys(resFirebase).map(key => {
+          Object.keys(resFirebase).forEach(key => {
             const item = resFirebase[key];
-            return [
+            const arrayItem = [
               item.fechaHoraDispositivo || item.fecha || item.timestamp,
               item.legajo,
               item.nombre,
@@ -432,12 +435,13 @@
               item.mapa || item.urlMapa || `https://www.google.com/maps?q=${item.latitud},${item.longitud}`,
               item.foto || item.urlFoto || item.fotoBase64 || ''
             ];
+            fichadasFirebaseArray.push(arrayItem);
+            // Guardamos que este registro específico pertenece a Firebase con su ID de llave única
+            firebaseKeysMap[JSON.stringify(arrayItem)] = key;
           });
         }
 
-        // Unimos el historial de Sheets con las nuevas de Firebase
         const combinados = [...(Array.isArray(resSheets) ? resSheets : []), ...fichadasFirebaseArray];
-
         datosLocales = combinados;
         filtrarTabla();
 
@@ -445,7 +449,7 @@
         console.error(err);
         document.getElementById('cuerpoTabla').innerHTML = `
           <tr>
-            <td colspan="7" class="p-8 text-center text-rose-400">
+            <td colspan="8" class="p-8 text-center text-rose-400">
               <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
               <p>Error al obtener registros. Revisa la conexión.</p>
             </td>
@@ -462,7 +466,7 @@
       if (!registros || registros.length === 0) {
         cuerpo.innerHTML = `
           <tr>
-            <td colspan="7" class="p-8 text-center text-slate-400">No hay registros cargados aún.</td>
+            <td colspan="8" class="p-8 text-center text-slate-400">No hay registros cargados aún.</td>
           </tr>`;
         return;
       }
@@ -494,6 +498,14 @@
              </button>`
           : `<span class="text-xs text-slate-500">Sin Foto</span>`;
 
+        // Verificamos si es un registro de Firebase para permitir borrarlo directamente
+        const firebaseKey = firebaseKeysMap[JSON.stringify(fila)];
+        const btnBorrar = firebaseKey 
+          ? `<button onclick="eliminarFichadaFirebase('${firebaseKey}')" class="bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 border border-rose-500/30 px-2.5 py-1 rounded-lg text-xs font-semibold transition" title="Eliminar registro">
+              <i class="fa-solid fa-trash-can"></i>
+             </button>`
+          : `<span class="text-[10px] text-slate-500" title="Registro histórico de Google Sheets">Sheets</span>`;
+
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-700/30 transition";
         tr.innerHTML = `
@@ -506,9 +518,29 @@
           </td>
           <td class="p-4 text-center">${btnMapa}</td>
           <td class="p-4 text-center">${btnFoto}</td>
+          <td class="p-4 text-center">${btnBorrar}</td>
         `;
         cuerpo.appendChild(tr);
       });
+    }
+
+    async function eliminarFichadaFirebase(firebaseKey) {
+      if (!confirm("¿Estás seguro de que deseas eliminar este registro de fichada?")) return;
+
+      try {
+        const urlDelete = `https://vga-security-24-default-rtdb.firebaseio.com/fichadas/${firebaseKey}.json`;
+        const respuesta = await fetch(urlDelete, { method: 'DELETE' });
+
+        if (respuesta.ok) {
+          alert("Registro eliminado con éxito.");
+          cargarDatos(); // Recargamos la tabla automáticamente
+        } else {
+          alert("No se pudo eliminar el registro en Firebase.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Ocurrió un error al intentar eliminar.");
+      }
     }
 
     function filtrarTabla() {
