@@ -114,8 +114,10 @@
 
   <script>
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw9dkxtfMbpeyWXks-wlzQCuo6Die3tFaUdZlEryuuoLgnnwHXGKkh5E92RBFACyc6Dag/exec";
+    const URL_FIREBASE = "https://vga-security-24-default-rtdb.firebaseio.com"; // URL configurada directamente
+    
     let fotoBase64Global = "";
-    let estaSincronizando = false; // Control de bloqueo para evitar ejecuciones concurrentes
+    let estaSincronizando = false;
 
     window.onload = function() {
       iniciarCamaraSegura();
@@ -273,7 +275,6 @@
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // --- FILTRO DE SEGURIDAD EN EL NAVEGADOR (ANTI-FRAUDE RÁPIDO) ---
       const analisis = validarSelfieReal(canvas);
       if (!analisis.valido) {
         status.innerText = analisis.mensaje;
@@ -282,7 +283,6 @@
         fotoBase64Global = "";
         return;
       }
-      // ----------------------------------------------------------------
       
       fotoBase64Global = canvas.toDataURL('image/jpeg', 0.5);
       
@@ -316,12 +316,10 @@
       const brilloPromedio = sumaBrillo / (data.length / 4);
       const promedioVariacion = variacionColor / (data.length / 4);
       
-      // Control de oscuridad total o sobreexposición (foto tapada o al cielo directo)
       if (brilloPromedio < 20 || brilloPromedio > 235) {
         return { valido: false, mensaje: "⚠️ Foto rechazada: Demasiado oscura o clara. Apunte directo a su rostro." };
       }
       
-      // Control de superficies planas uniformes (paredes o cielo sin rasgos de relieve)
       if (promedioVariacion < 8) {
         return { valido: false, mensaje: "⚠️ Foto rechazada: No se detecta un rostro natural. Evite fotografiar objetos o cielo." };
       }
@@ -381,6 +379,7 @@
       );
     }
 
+    // ENVÍO DIRECTO A FIREBASE (Ultra rápido - Menos de 1 segundo)
     function ejecutarPeticionFichada(tipo, lat, lng, legajo, pin, nombre, objetivo) {
       const datos = {
         legajo: legajo,
@@ -405,26 +404,27 @@
       divResultado.innerText = "Registrando fichada...";
       divResultado.classList.remove('hidden');
 
-      fetch(URL_APPS_SCRIPT, {
+      fetch(`${URL_FIREBASE}/fichadas.json`, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(datos)
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("Error en la respuesta de Firebase");
+        return res.json();
+      })
       .then(respuesta => {
-        if (respuesta.exito === true) {
+        if (respuesta && respuesta.name) {
           divResultado.className = "p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-200 border border-emerald-500";
           divResultado.innerText = `✓ ¡Fichada de ${tipo} registrada con éxito!`;
           
           limpiarFormularioExitoso();
-
         } else {
-          divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
-          divResultado.innerText = respuesta.mensaje || "❌ Acción rechazada por el servidor.";
+          throw new Error("No se pudo confirmar el guardado en Firebase.");
         }
       })
       .catch(err => {
-        console.warn("Fallo de red al enviar. Guardando offline automáticamente...", err);
+        console.warn("Fallo al conectar con Firebase. Guardando offline automáticamente...", err);
         guardarFichadaOffline(datos, tipo, legajo);
       });
     }
@@ -482,15 +482,15 @@
       let datos = pendientes.shift(); 
       localStorage.setItem('fichadas_pendientes', JSON.stringify(pendientes));
 
-      fetch(URL_APPS_SCRIPT, {
+      fetch(`${URL_FIREBASE}/fichadas.json`, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(datos)
       })
       .then(res => res.json())
       .then(respuesta => {
         estaSincronizando = false;
-        console.log("🔄 Fichada pendiente sincronizada con éxito.");
+        console.log("🔄 Fichada pendiente sincronizada con Firebase.");
         
         if (pendientes.length > 0) {
           sincronizarFichadasPendientes();
