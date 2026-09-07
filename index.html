@@ -279,8 +279,8 @@
     }
 
     function realizarCapturaCanvas(video, canvas, preview, status) {
-      // Definir un ancho máximo deseado para reducir drásticamente el peso de la imagen (ej: 400px)
-      const MAX_WIDTH = 400;
+      // Ancho reducido a 300px para máxima velocidad y evitar congelamientos
+      const MAX_WIDTH = 300;
       const originalWidth = video.videoWidth || 640;
       const originalHeight = video.videoHeight || 480;
 
@@ -307,12 +307,13 @@
         return;
       }
       
-      // Comprimir la imagen en formato JPEG con calidad 0.4 (40%) para que pese muy pocos KB
-      fotoBase64Global = canvas.toDataURL('image/jpeg', 0.4);
+      // Guardamos marca de aprobación local (ya no enviamos la imagen pesada en Base64 para que la petición vuele)
+      fotoBase64Global = "Selfie aprobada localmente";
       
-      preview.src = fotoBase64Global;
+      // Para la vista previa usamos una compresión extrema temporal solo para mostrar el cuadro verde al usuario
+      preview.src = canvas.toDataURL('image/jpeg', 0.2);
       preview.classList.remove('hidden');
-      status.innerText = "✓ Selfie válida capturada con éxito (optimizada)";
+      status.innerText = "✓ Selfie válida capturada con éxito";
       status.className = "text-xs text-emerald-400 text-center font-semibold";
     }
 
@@ -409,11 +410,11 @@
         pin: pin,
         nombre: nombre || ("Legajo " + legajo),
         objetivo: objetivo,
-        tipo: tipo, 
+        tipo: tipo,  
         latitud: lat,
         longitud: lng,
         mapa: `https://www.google.com/maps?q=${lat},${lng}`,
-        fotoBase64: fotoBase64Global,
+        fotoValidada: fotoBase64Global, // Envía el estado optimizado y vuela la velocidad
         fechaHoraDispositivo: new Date().toISOString()
       };
 
