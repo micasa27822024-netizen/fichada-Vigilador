@@ -6,6 +6,10 @@
   <title>VGA 24 - Mi Historial de Horas y Marcaciones</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  
+  <!-- Firebase SDKs (Compat v9) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
 
@@ -136,7 +140,7 @@
       </div>
     </div>
 
-    <!-- MÓDULO DE NOVEDADES E INCIDENCIAS (ABAJO DE TODO, SOLO SI ESTÁ EN SERVICIO) -->
+    <!-- MÓDULO DE NOVEDADES E INCIDENCIAS -->
     <div id="seccionNovedades" class="hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Reportar Novedad o Incidencia
@@ -172,7 +176,20 @@
   </main>
 
   <script>
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw9dkxtfMbpeyWXks-wlzQCuo6Die3tFaUdZlEryuuoLgnnwHXGKkh5E92RBFACyc6Dag/exec";
+    // Configuración de Firebase (Asegúrate de colocar tus credenciales reales aquí)
+    const firebaseConfig = {
+      apiKey: "TU_API_KEY",
+      authDomain: "TU_PROYECTO.firebaseapp.com",
+      projectId: "TU_PROJECT_ID",
+      storageBucket: "TU_PROYECTO.appspot.com",
+      messagingSenderId: "TU_SENDER_ID",
+      appId: "TU_APP_ID"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     let temporizadorInactividad;
     let datosVigiladorGlobal = []; 
 
@@ -200,7 +217,7 @@
           const cacheLocal = localStorage.getItem('cache_datos_vigiladores');
           if (cacheLocal) {
             const datos = JSON.parse(cacheLocal);
-            const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajoGuardado);
+            const marcacionesVigilador = datos.filter(f => String(f.legajo).trim() === legajoGuardado);
             if (marcacionesVigilador.length > 0) {
               datosVigiladorGlobal = marcacionesVigilador;
               poblarSelectMeses(datosVigiladorGlobal);
@@ -248,7 +265,8 @@
       return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')} hs`;
     }
 
-    function buscarMisHoras() {
+    // Buscar y validar en Firestore (colección 'marcaciones' y 'vigilantes' o por validación de PIN)
+    async function buscarMisHoras() {
       const legajo = document.getElementById('legajoInput').value.trim();
       const pin = document.getElementById('pinInput').value.trim();
 
@@ -256,50 +274,60 @@
         return alert("Por favor ingresa tu número de legajo y tu PIN de seguridad.");
       }
 
-      fetch(URL_APPS_SCRIPT)
-        .then(res => res.json())
-        .then(datos => {
-          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(datos));
-          const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajo);
-          
-          if (marcacionesVigilador.length === 0) {
-            alert("No se encontraron registros para el legajo ingresado.");
-            return;
-          }
+      try {
+        // Opcional: Validar PIN contra una colección de vigilantes, o buscar directamente
+        // Aquí consultamos las marcaciones de Firestore filtradas por legajo
+        const snapshot = await db.collection('marcaciones').where('legajo', '==', legajo).get();
+        
+        if (snapshot.empty) {
+          alert("No se encontraron registros para el legajo ingresado.");
+          return;
+        }
 
-          sessionStorage.setItem('vigilador_legajo', legajo);
-          datosVigiladorGlobal = marcacionesVigilador;
-
-          document.getElementById('formLoginVigilador').classList.add('hidden');
-          document.getElementById('infoSesionActiva').classList.remove('hidden');
-          document.getElementById('lblLegajoActivo').innerText = legajo;
-          document.getElementById('btnCerrarSesion').classList.remove('hidden');
-          document.getElementById('seccionNovedades').classList.remove('hidden'); 
-
-          poblarSelectMeses(datosVigiladorGlobal);
-          procesarYRenderizar(datosVigiladorGlobal);
-          activarEscuchasInactividad();
-          reiniciarTemporizador();
-        })
-        .catch(err => {
-          console.error(err);
-          alert("Ocurrió un error al consultar las marcaciones.");
+        let marcacionesVigilador = [];
+        snapshot.forEach(doc => {
+          marcacionesVigilador.push(doc.data());
         });
+
+        localStorage.setItem('cache_datos_vigiladores', JSON.stringify(marcacionesVigilador));
+
+        sessionStorage.setItem('vigilador_legajo', legajo);
+        datosVigiladorGlobal = marcacionesVigilador;
+
+        document.getElementById('formLoginVigilador').classList.add('hidden');
+        document.getElementById('infoSesionActiva').classList.remove('hidden');
+        document.getElementById('lblLegajoActivo').innerText = legajo;
+        document.getElementById('btnCerrarSesion').classList.remove('hidden');
+        document.getElementById('seccionNovedades').classList.remove('hidden'); 
+
+        poblarSelectMeses(datosVigiladorGlobal);
+        procesarYRenderizar(datosVigiladorGlobal);
+        activarEscuchasInactividad();
+        reiniciarTemporizador();
+
+      } catch (err) {
+        console.error(err);
+        alert("Ocurrió un error al consultar las marcaciones en Firebase.");
+      }
     }
 
-    function ejecutarConsulta(legajo) {
-      fetch(URL_APPS_SCRIPT)
-        .then(res => res.json())
-        .then(datos => {
-          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(datos));
-          const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajo);
-          if (marcacionesVigilador.length > 0) {
-            datosVigiladorGlobal = marcacionesVigilador;
-            poblarSelectMeses(datosVigiladorGlobal);
-            aplicarFiltros(); 
-          }
-        })
-        .catch(err => console.error(err));
+    async function ejecutarConsulta(legajo) {
+      try {
+        const snapshot = await db.collection('marcaciones').where('legajo', '==', legajo).get();
+        let marcacionesVigilador = [];
+        snapshot.forEach(doc => {
+          marcacionesVigilador.push(doc.data());
+        });
+
+        if (marcacionesVigilador.length > 0) {
+          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(marcacionesVigilador));
+          datosVigiladorGlobal = marcacionesVigilador;
+          poblarSelectMeses(datosVigiladorGlobal);
+          aplicarFiltros(); 
+        }
+      } catch (err) {
+        console.error("Error al actualizar consulta:", err);
+      }
     }
 
     function poblarSelectMeses(datos) {
@@ -308,8 +336,9 @@
       
       const mesesSet = new Set();
       datos.forEach(f => {
-        if(f[0]) {
-          const d = new Date(f[0]);
+        let fechaVal = f.timestamp || f.fecha;
+        if(fechaVal) {
+          const d = new Date(fechaVal);
           if(!isNaN(d)) {
             const anio = d.getFullYear();
             const mes = String(d.getMonth() + 1).padStart(2, '0');
@@ -345,7 +374,8 @@
 
       if (mesFiltro !== 'todos') {
         filtrados = filtrados.filter(f => {
-          const d = new Date(f[0]);
+          let fechaVal = f.timestamp || f.fecha;
+          const d = new Date(fechaVal);
           const anio = d.getFullYear();
           const mes = String(d.getMonth() + 1).padStart(2, '0');
           return `${anio}-${mes}` === mesFiltro;
@@ -354,7 +384,8 @@
 
       if (diaFiltro) {
         filtrados = filtrados.filter(f => {
-          const d = new Date(f[0]);
+          let fechaVal = f.timestamp || f.fecha;
+          const d = new Date(fechaVal);
           const anio = d.getFullYear();
           const mes = String(d.getMonth() + 1).padStart(2, '0');
           const dia = String(d.getDate()).padStart(2, '0');
@@ -372,19 +403,25 @@
     }
 
     function procesarYRenderizar(marcacionesVigilador) {
-      marcacionesVigilador.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+      marcacionesVigilador.sort((a, b) => new Date(a.timestamp || a.fecha) - new Date(b.timestamp || b.fecha));
 
       let totalD = 0, totalN = 0, totalT = 0;
       const tabla = document.getElementById('cuerpoDetalle');
       tabla.innerHTML = "";
 
       for (let i = 0; i < marcacionesVigilador.length; i++) {
-        if (marcacionesVigilador[i][4] === 'ENTRADA') {
+        let tipoActual = marcacionesVigilador[i].tipo || marcacionesVigilador[i][4];
+        if (tipoActual === 'ENTRADA') {
           let entrada = marcacionesVigilador[i];
-          let salida = marcacionesVigilador[i + 1] && marcacionesVigilador[i + 1][4] === 'SALIDA' ? marcacionesVigilador[i + 1] : null;
+          let siguiente = marcacionesVigilador[i + 1];
+          let tipoSiguiente = siguiente ? (siguiente.tipo || siguiente[4]) : null;
+          let salida = siguiente && tipoSiguiente === 'SALIDA' ? siguiente : null;
 
-          let horas = salida ? calcularHoras(entrada[0], salida[0]) : { d: 0, n: 0, t: 0 };
-          let objetivoNombre = entrada[3] || (salida && salida[3]) || '-';
+          let fechaEntrada = entrada.timestamp || entrada[0];
+          let fechaSalida = salida ? (salida.timestamp || salida[0]) : null;
+
+          let horas = salida ? calcularHoras(fechaEntrada, fechaSalida) : { d: 0, n: 0, t: 0 };
+          let objetivoNombre = entrada.objetivo || entrada[3] || (salida && (salida.objetivo || salida[3])) || '-';
 
           totalD += horas.d;
           totalN += horas.n;
@@ -393,8 +430,8 @@
           const tr = document.createElement('tr');
           tr.className = "hover:bg-slate-700/30 transition";
           tr.innerHTML = `
-            <td class="p-4 text-xs font-mono">${new Date(entrada[0]).toLocaleString('es-AR', { hour12: false })}</td>
-            <td class="p-4 text-xs font-mono">${salida ? new Date(salida[0]).toLocaleString('es-AR', { hour12: false }) : '<span class="text-amber-400">En Turno</span>'}</td>
+            <td class="p-4 text-xs font-mono">${new Date(fechaEntrada).toLocaleString('es-AR', { hour12: false })}</td>
+            <td class="p-4 text-xs font-mono">${salida ? new Date(fechaSalida).toLocaleString('es-AR', { hour12: false }) : '<span class="text-amber-400">En Turno</span>'}</td>
             <td class="p-4 text-xs text-slate-300 font-medium">${objetivoNombre}</td>
             <td class="p-4 text-center text-xs font-semibold text-amber-400">${formatearAHorasReloj(horas.d)}</td>
             <td class="p-4 text-center text-xs font-semibold text-indigo-400">${formatearAHorasReloj(horas.n)}</td>
@@ -413,7 +450,7 @@
       document.getElementById('contenedorTabla').classList.remove('hidden');
     }
 
-    // 📝 ENVÍO DE NOVEDAD CON VALIDACIÓN ESTRICTA DE ESTAR EN SERVICIO Y GPS
+    // ENVÍO DE NOVEDAD A FIREBASE FIRESTORE
     function enviarNovedadPortal() {
       const legajo = sessionStorage.getItem('vigilador_legajo');
       const tipoIncidencia = document.getElementById('tipoIncidencia').value;
@@ -425,17 +462,17 @@
         return;
       }
 
-      // Validar si realmente está en servicio (la última marcación debe ser ENTRADA sin SALIDA)
       let enServicio = false;
       let objetivoActual = "Objetivo Asignado";
 
       if (datosVigiladorGlobal.length > 0) {
-        let ordenadas = [...datosVigiladorGlobal].sort((a, b) => new Date(a[0]) - new Date(b[0]));
+        let ordenadas = [...datosVigiladorGlobal].sort((a, b) => new Date(a.timestamp || a.fecha) - new Date(b.timestamp || b.fecha));
         let ultimaMar = ordenadas[ordenadas.length - 1];
+        let tipoUltima = ultimaMar.tipo || ultimaMar[4];
         
-        if (ultimaMar && ultimaMar[4] === 'ENTRADA') {
+        if (ultimaMar && tipoUltima === 'ENTRADA') {
           enServicio = true;
-          if (ultimaMar[3]) objetivoActual = ultimaMar[3];
+          if (ultimaMar.objetivo || ultimaMar[3]) objetivoActual = ultimaMar.objetivo || ultimaMar[3];
         }
       }
 
@@ -462,11 +499,11 @@
           if (inputArchivo.files && inputArchivo.files[0]) {
             const lector = new FileReader();
             lector.onload = function(e) {
-              enviarDatosServidor(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, e.target.result);
+              enviarDatosFirestore(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, e.target.result);
             };
             lector.readAsDataURL(inputArchivo.files[0]);
           } else {
-            enviarDatosServidor(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, null);
+            enviarDatosFirestore(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, null);
           }
         },
         function(error) {
@@ -476,7 +513,7 @@
       );
     }
 
-    function enviarDatosServidor(legajo, objetivo, tipoIncidencia, descripcion, lat, lon, fotoBase64) {
+    async function enviarDatosFirestore(legajo, objetivo, tipoIncidencia, descripcion, lat, lon, fotoBase64) {
       const payload = {
         tipoAccion: "REGISTRAR_NOVEDAD",
         legajo: legajo,
@@ -486,26 +523,18 @@
         descripcion: descripcion,
         latitud: lat,
         longitud: lon,
-        fotoBase64: fotoBase64 || ""
+        fotoBase64: fotoBase64 || "",
+        timestamp: new Date().toISOString()
       };
 
-      fetch(URL_APPS_SCRIPT, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(respuesta => {
-        if (respuesta.exito) {
-          alert("✅ " + respuesta.mensaje);
-          document.getElementById('descNovedad').value = "";
-          document.getElementById('fotoNovedadInput').value = "";
-        } else {
-          alert("❌ Error: " + respuesta.mensaje);
-        }
-      })
-      .catch(error => {
-        alert("Error de conexión al enviar novedad: " + error.toString());
-      });
+      try {
+        await db.collection('novedades').add(payload);
+        alert("✅ Novedad enviada con éxito a la Central.");
+        document.getElementById('descNovedad').value = "";
+        document.getElementById('fotoNovedadInput').value = "";
+      } catch (error) {
+        alert("Error de conexión al enviar novedad a Firebase: " + error.toString());
+      }
     }
 
     function cerrarSesionVigilador() {
