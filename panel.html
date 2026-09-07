@@ -98,7 +98,7 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
       <div>
         <h2 class="text-2xl font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-chart-line text-emerald-500"></i> Panel de Control & Métricas
+          <i class="fa-solid fa-chart-line text-emerald-500"></i> Panel de Control & Métricas (Firebase)
         </h2>
         <p class="text-xs text-slate-400 mt-1">Supervisión, KPIs e historial de asistencia en tiempo real</p>
       </div>
@@ -330,7 +330,7 @@
             <tr>
               <td colspan="8" class="p-8 text-center text-slate-400">
                 <i class="fa-solid fa-spinner fa-spin text-2xl text-emerald-500 mb-2"></i>
-                <p>Cargando información...</p>
+                <p>Cargando información desde Firebase...</p>
               </td>
             </tr>
           </tbody>
@@ -349,11 +349,6 @@
       <h3 class="font-bold text-white text-base">Foto de Marcación</h3>
       <div class="w-full h-80 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center relative">
         <img id="imgModal" src="" alt="Foto Fichada" class="w-full h-full object-contain">
-      </div>
-      <div class="text-right">
-        <a id="btnDriveDirecto" href="#" target="_blank" class="text-xs text-amber-400 hover:underline inline-flex items-center gap-1">
-          <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir directamente en Drive
-        </a>
       </div>
     </div>
   </div>
@@ -397,15 +392,14 @@
     }
 
     // ==========================================
-    // LÓGICA DE DATOS Y DASHBOARD (FIREBASE + SHEETS)
+    // LÓGICA DE DATOS Y DASHBOARD (EXCLUSIVO FIREBASE)
     // ==========================================
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw9dkxtfMbpeyWXks-wlzQCuo6Die3tFaUdZlEryuuoLgnnwHXGKkh5E92RBFACyc6Dag/exec";
     const URL_FIREBASE = "https://vga-security-24-default-rtdb.firebaseio.com/fichadas.json";
     
     let datosLocales = [];
     let datosFiltradosActuales = [];
     let datosSupervisorGlobal = [];
-    let firebaseKeysMap = {}; // Guarda la relación de los índices con los IDs de Firebase
+    let firebaseKeysMap = {}; // Guarda la relación de los elementos con sus IDs de Firebase
 
     let instChartDona = null;
     let instChartBarras = null;
@@ -415,13 +409,11 @@
       if (icono) icono.classList.add('fa-spin');
 
       try {
-        const [resSheets, resFirebase] = await Promise.all([
-          fetch(URL_APPS_SCRIPT, { redirect: "follow" }).then(res => res.ok ? res.json() : []),
-          fetch(URL_FIREBASE).then(res => res.ok ? res.json() : null)
-        ]);
+        const res = await fetch(URL_FIREBASE);
+        const resFirebase = res.ok ? await res.json() : null;
 
-        let fichadasFirebaseArray = [];
-        firebaseKeysMap = {}; // Reiniciamos el mapa
+        let fichadasArray = [];
+        firebaseKeysMap = {}; 
 
         if (resFirebase) {
           Object.keys(resFirebase).forEach(key => {
@@ -435,14 +427,12 @@
               item.mapa || item.urlMapa || `https://www.google.com/maps?q=${item.latitud},${item.longitud}`,
               item.foto || item.urlFoto || item.fotoBase64 || ''
             ];
-            fichadasFirebaseArray.push(arrayItem);
-            // Guardamos que este registro específico pertenece a Firebase con su ID de llave única
+            fichadasArray.push(arrayItem);
             firebaseKeysMap[JSON.stringify(arrayItem)] = key;
           });
         }
 
-        const combinados = [...(Array.isArray(resSheets) ? resSheets : []), ...fichadasFirebaseArray];
-        datosLocales = combinados;
+        datosLocales = fichadasArray;
         filtrarTabla();
 
       } catch (err) {
@@ -451,7 +441,7 @@
           <tr>
             <td colspan="8" class="p-8 text-center text-rose-400">
               <i class="fa-solid fa-circle-exclamation text-xl mb-1"></i>
-              <p>Error al obtener registros. Revisa la conexión.</p>
+              <p>Error al obtener registros desde Firebase. Revisa tu conexión.</p>
             </td>
           </tr>`;
       } finally {
@@ -466,7 +456,7 @@
       if (!registros || registros.length === 0) {
         cuerpo.innerHTML = `
           <tr>
-            <td colspan="8" class="p-8 text-center text-slate-400">No hay registros cargados aún.</td>
+            <td colspan="8" class="p-8 text-center text-slate-400">No hay registros cargados en Firebase aún.</td>
           </tr>`;
         return;
       }
@@ -498,13 +488,12 @@
              </button>`
           : `<span class="text-xs text-slate-500">Sin Foto</span>`;
 
-        // Verificamos si es un registro de Firebase para permitir borrarlo directamente
         const firebaseKey = firebaseKeysMap[JSON.stringify(fila)];
         const btnBorrar = firebaseKey 
           ? `<button onclick="eliminarFichadaFirebase('${firebaseKey}')" class="bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 border border-rose-500/30 px-2.5 py-1 rounded-lg text-xs font-semibold transition" title="Eliminar registro">
               <i class="fa-solid fa-trash-can"></i>
              </button>`
-          : `<span class="text-[10px] text-slate-500" title="Registro histórico de Google Sheets">Sheets</span>`;
+          : `<span class="text-[10px] text-slate-500">-</span>`;
 
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-700/30 transition";
@@ -533,7 +522,7 @@
 
         if (respuesta.ok) {
           alert("Registro eliminado con éxito.");
-          cargarDatos(); // Recargamos la tabla automáticamente
+          cargarDatos(); 
         } else {
           alert("No se pudo eliminar el registro en Firebase.");
         }
@@ -956,20 +945,8 @@
       });
     }
 
-    function obtenerUrlDirectaFoto(url) {
-      if (!url) return '';
-      if (url.startsWith('data:image')) return url;
-      const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-      if (match && match[1]) {
-        return `https://lh3.googleusercontent.com/d/${match[1]}`;
-      }
-      return url;
-    }
-
     function abrirFoto(url) {
-      const urlDirecta = obtenerUrlDirectaFoto(url);
-      document.getElementById('imgModal').src = urlDirecta;
-      document.getElementById('btnDriveDirecto').href = url.startsWith('data:image') ? '#' : url;
+      document.getElementById('imgModal').src = url;
       document.getElementById('modalFoto').classList.remove('hidden');
     }
 
