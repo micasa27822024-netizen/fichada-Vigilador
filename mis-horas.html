@@ -158,7 +158,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Adjuntar Foto (Opcional):</label>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Adjuntar Foto (Opcional - Comprimida automáticamente):</label>
           <input type="file" id="fotoNovedadInput" accept="image/*" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-1.5 text-xs text-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer">
         </div>
       </div>
@@ -265,7 +265,6 @@
       return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')} hs`;
     }
 
-    // Buscar y validar en Firestore (colección 'marcaciones' y 'vigilantes' o por validación de PIN)
     async function buscarMisHoras() {
       const legajo = document.getElementById('legajoInput').value.trim();
       const pin = document.getElementById('pinInput').value.trim();
@@ -275,8 +274,6 @@
       }
 
       try {
-        // Opcional: Validar PIN contra una colección de vigilantes, o buscar directamente
-        // Aquí consultamos las marcaciones de Firestore filtradas por legajo
         const snapshot = await db.collection('marcaciones').where('legajo', '==', legajo).get();
         
         if (snapshot.empty) {
@@ -450,7 +447,7 @@
       document.getElementById('contenedorTabla').classList.remove('hidden');
     }
 
-    // ENVÍO DE NOVEDAD A FIREBASE FIRESTORE
+    // ENVÍO DE NOVEDAD A FIREBASE FIRESTORE CON COMPRESIÓN DE IMAGEN INTEGRADA
     function enviarNovedadPortal() {
       const legajo = sessionStorage.getItem('vigilador_legajo');
       const tipoIncidencia = document.getElementById('tipoIncidencia').value;
@@ -496,14 +493,50 @@
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
 
+          // Si el usuario seleccionó una foto, la comprimimos antes de enviarla
           if (inputArchivo.files && inputArchivo.files[0]) {
+            const archivo = inputArchivo.files[0];
             const lector = new FileReader();
+            
             lector.onload = function(e) {
-              enviarDatosFirestore(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, e.target.result);
+              const img = new Image();
+              img.src = e.target.result;
+              
+              img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Redimensionar a un máximo de 800px para asegurar bajo peso (pocos KB)
+                const MAX_WIDTH = 800;
+                const MAX_HEIGHT = 800;
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > height) {
+                  if (width > MAX_WIDTH) {
+                    height = Math.round((height * MAX_WIDTH) / width);
+                    width = MAX_WIDTH;
+                  }
+                } else {
+                  if (height > MAX_HEIGHT) {
+                    width = Math.round((height * MAX_HEIGHT) / height);
+                    height = MAX_HEIGHT;
+                  }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Comprimir a JPEG con calidad 0.6 (60%), reduciendo drásticamente el peso a nivel de KB
+                const fotoComprimidaBase64 = canvas.toDataURL('image/jpeg', 0.6);
+                
+                enviarDatosFirestore(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, fotoComprimidaBase64);
+              }
             };
-            lector.readAsDataURL(inputArchivo.files[0]);
+            lector.readAsDataURL(archivo);
           } else {
-            enviarDatosFirestore(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, null);
+            enviarDatosFirestore(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, "");
           }
         },
         function(error) {
@@ -523,7 +556,7 @@
         descripcion: descripcion,
         latitud: lat,
         longitud: lon,
-        fotoBase64: fotoBase64 || "",
+        fotoBase64: fotoBase64,
         timestamp: new Date().toISOString()
       };
 
