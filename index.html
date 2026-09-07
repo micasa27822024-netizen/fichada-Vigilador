@@ -113,8 +113,7 @@
   </main>
 
   <script>
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw9dkxtfMbpeyWXks-wlzQCuo6Die3tFaUdZlEryuuoLgnnwHXGKkh5E92RBFACyc6Dag/exec";
-    const URL_FIREBASE = "https://vga-security-24-default-rtdb.firebaseio.com"; // URL configurada directamente
+    const URL_FIREBASE = "https://vga-security-24-default-rtdb.firebaseio.com";
     
     let fotoBase64Global = "";
     let estaSincronizando = false;
@@ -165,6 +164,7 @@
       }
     }
 
+    // CARGAR OBJETIVOS DIRECTAMENTE DESDE FIREBASE
     function cargarObjetivos() {
       const selectObj = document.getElementById('objetivo');
       let objetivosGuardados = JSON.parse(localStorage.getItem('vga_lista_objetivos') || '[]');
@@ -174,13 +174,14 @@
       }
 
       if (navigator.onLine) {
-        fetch(`${URL_APPS_SCRIPT}?tipo=objetivos`)
+        fetch(`${URL_FIREBASE}/objetivos.json`)
           .then(res => res.json())
           .then(data => {
-            if (Array.isArray(data) && data.length > 0) {
+            if (data) {
               let listaNuevos = [];
-              data.forEach(item => {
-                const nombreObj = item[1] || item[0];
+              // Firebase devuelve un objeto con claves aleatorias, lo recorremos con Object.values
+              Object.values(data).forEach(item => {
+                const nombreObj = item.nombre || item.codigo;
                 if (nombreObj) listaNuevos.push(nombreObj);
               });
               
@@ -190,7 +191,7 @@
               }
             }
           })
-          .catch(err => console.warn("No se pudieron actualizar los objetivos online:", err));
+          .catch(err => console.warn("No se pudieron actualizar los objetivos desde Firebase:", err));
       } else if (objetivosGuardados.length === 0) {
         selectObj.innerHTML = '<option value="Don Pedro Hurlingham">Don Pedro Hurlingham (Modo Offline)</option><option value="Puesto General">Puesto General</option>';
       }
@@ -213,11 +214,12 @@
       });
     }
 
+    // VALIDAR LEGAJO CONSULTANDO EL NODO PERSONAL DE FIREBASE
     function validarLegajo() {
-      const legajo = document.getElementById('legajo').value.trim();
+      const legajoInput = document.getElementById('legajo').value.trim();
       const statusLbl = document.getElementById('legajo-status');
       
-      if (!legajo) return;
+      if (!legajoInput) return;
 
       if (!navigator.onLine) {
         statusLbl.className = "text-xs mt-1 text-slate-400 block";
@@ -228,22 +230,32 @@
       statusLbl.className = "text-xs mt-1 text-amber-400 block";
       statusLbl.innerText = "Buscando legajo...";
 
-      fetch(`${URL_APPS_SCRIPT}?tipo=validarVigilador&legajo=${encodeURIComponent(legajo)}`)
+      fetch(`${URL_FIREBASE}/personal.json`)
         .then(res => res.json())
         .then(data => {
-          if (data.existe) {
-            document.getElementById('nombre').value = data.nombreOficial || "";
+          let encontrado = null;
+          if (data) {
+            // Buscamos dentro de los registros de personal aquel cuyo legajo coincida
+            Object.values(data).forEach(personal => {
+              if (String(personal.legajo).trim() === String(legajoInput)) {
+                encontrado = personal;
+              }
+            });
+          }
+
+          if (encontrado) {
+            document.getElementById('nombre').value = encontrado.nombre || "";
             statusLbl.className = "text-xs mt-1 text-emerald-400 block";
-            statusLbl.innerText = `✓ Guardia: ${data.nombreOficial || 'Legajo Encontrado'}`;
+            statusLbl.innerText = `✓ Guardia: ${encontrado.nombre || 'Legajo Encontrado'}`;
           } else {
             document.getElementById('nombre').value = "";
             statusLbl.className = "text-xs mt-1 text-rose-400 block";
-            statusLbl.innerText = data.mensaje || "❌ Legajo no encontrado.";
+            statusLbl.innerText = "❌ Legajo no encontrado en el sistema.";
           }
         })
         .catch(() => {
           statusLbl.className = "text-xs mt-1 text-slate-400 block";
-          statusLbl.innerText = "Modo de verificación manual habilitado.";
+          statusLbl.innerText = "Error de conexión al validar legajo.";
         });
     }
 
@@ -260,7 +272,7 @@
             setTimeout(() => realizarCapturaCanvas(video, canvas, preview, status), 300);
           })
           .catch(err => {
-            alert("No se pudo acceder a la cámara. Verifique los permisos del navegador.");
+            alert("No se pudo acceder à la cámara. Verifique los permisos del navegador.");
           });
         return;
       }
@@ -379,7 +391,6 @@
       );
     }
 
-    // ENVÍO DIRECTO A FIREBASE (Ultra rápido - Menos de 1 segundo)
     function ejecutarPeticionFichada(tipo, lat, lng, legajo, pin, nombre, objetivo) {
       const datos = {
         legajo: legajo,
@@ -389,6 +400,7 @@
         tipo: tipo, 
         latitud: lat,
         longitud: lng,
+        mapa: `https://www.google.com/maps?q=${lat},${lng}`,
         fotoBase64: fotoBase64Global,
         fechaHoraDispositivo: new Date().toISOString()
       };
