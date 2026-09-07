@@ -74,7 +74,7 @@
       <!-- Indicador de Sesión Activa -->
       <div id="infoSesionActiva" class="hidden flex flex-col md:flex-row items-center justify-between bg-slate-900/60 border border-emerald-500/30 px-4 py-2.5 rounded-xl text-xs gap-2">
         <span class="text-emerald-400 font-medium flex items-center gap-2">
-          <i class="fa-solid fa-circle-check"></i> Sesión activa para el Legajo: <strong id="lblLegajoActivo" class="text-white"></strong>
+          <i class="fa-solid fa-circle-check"></i> Sesión activa para el Vigilador: <strong id="lblNombreActivo" class="text-white"></strong> (<span id="lblLegajoActivo"></span>)
         </span>
         <span class="text-slate-400"><i class="fa-solid fa-shield-halved text-emerald-400"></i> Bloqueo por inactividad (3 min)</span>
       </div>
@@ -136,7 +136,7 @@
       </div>
     </div>
 
-    <!-- MÓDULO DE NOVEDADES E INCIDENCIAS (ABAJO DE TODO, SOLO SI ESTÁ EN SERVICIO) -->
+    <!-- MÓDULO DE NOVEDADES E INCIDENCIAS -->
     <div id="seccionNovedades" class="hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Reportar Novedad o Incidencia
@@ -172,7 +172,7 @@
   </main>
 
   <script>
-    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw9dkxtfMbpeyWXks-wlzQCuo6Die3tFaUdZlEryuuoLgnnwHXGKkh5E92RBFACyc6Dag/exec";
+    const URL_FIREBASE = "https://vga-security-24-default-rtdb.firebaseio.com";
     let temporizadorInactividad;
     let datosVigiladorGlobal = []; 
 
@@ -188,29 +188,16 @@
 
     window.onload = function() {
       const legajoGuardado = sessionStorage.getItem('vigilador_legajo');
+      const nombreGuardado = sessionStorage.getItem('vigilador_nombre');
       if (legajoGuardado) {
         document.getElementById('legajoInput').value = legajoGuardado;
         document.getElementById('formLoginVigilador').classList.add('hidden');
         document.getElementById('infoSesionActiva').classList.remove('hidden');
         document.getElementById('lblLegajoActivo').innerText = legajoGuardado;
+        document.getElementById('lblNombreActivo').innerText = nombreGuardado || `Legajo ${legajoGuardado}`;
         document.getElementById('btnCerrarSesion').classList.remove('hidden');
         document.getElementById('seccionNovedades').classList.remove('hidden'); 
         
-        try {
-          const cacheLocal = localStorage.getItem('cache_datos_vigiladores');
-          if (cacheLocal) {
-            const datos = JSON.parse(cacheLocal);
-            const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajoGuardado);
-            if (marcacionesVigilador.length > 0) {
-              datosVigiladorGlobal = marcacionesVigilador;
-              poblarSelectMeses(datosVigiladorGlobal);
-              procesarYRenderizar(datosVigiladorGlobal);
-            }
-          }
-        } catch (e) {
-          console.error("Error al leer caché local", e);
-        }
-
         ejecutarConsulta(legajoGuardado);
         activarEscuchasInactividad();
         reiniciarTemporizador();
@@ -249,52 +236,99 @@
     }
 
     function buscarMisHoras() {
-      const legajo = document.getElementById('legajoInput').value.trim();
-      const pin = document.getElementById('pinInput').value.trim();
+      const legajoIngresado = document.getElementById('legajoInput').value.trim();
+      const pinIngresado = document.getElementById('pinInput').value.trim();
 
-      if (!legajo || !pin) {
+      if (!legajoIngresado || !pinIngresado) {
         return alert("Por favor ingresa tu número de legajo y tu PIN de seguridad.");
       }
 
-      fetch(URL_APPS_SCRIPT)
-        .then(res => res.json())
-        .then(datos => {
-          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(datos));
-          const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajo);
-          
-          if (marcacionesVigilador.length === 0) {
-            alert("No se encontraron registros para el legajo ingresado.");
-            return;
-          }
+      Promise.all([
+        fetch(`${URL_FIREBASE}/personal.json`).then(res => res.json()),
+        fetch(`${URL_FIREBASE}/fichadas.json`).then(res => res.json())
+      ])
+      .then(([personalData, fichadasData]) => {
+        let empleadoEncontrado = null;
+        let nombreEmpleado = `Legajo ${legajoIngresado}`;
 
-          sessionStorage.setItem('vigilador_legajo', legajo);
-          datosVigiladorGlobal = marcacionesVigilador;
+        // Validar personal y PIN
+        if (personalData) {
+          Object.values(personalData).forEach(p => {
+            const pLegajo = String(p.legajo || "").trim();
+            if (pLegajo === legajoIngresado || parseInt(pLegajo, 10) === parseInt(legajoIngresado, 10)) {
+              const pPin = String(p.pin || p.clave || "").trim();
+              if (!pPin || pPin === pinIngresado) {
+                empleadoEncontrado = p;
+                if (p.nombre) nombreEmpleado = p.nombre;
+              }
+            }
+          });
+        }
 
-          document.getElementById('formLoginVigilador').classList.add('hidden');
-          document.getElementById('infoSesionActiva').classList.remove('hidden');
-          document.getElementById('lblLegajoActivo').innerText = legajo;
-          document.getElementById('btnCerrarSesion').classList.remove('hidden');
-          document.getElementById('seccionNovedades').classList.remove('hidden'); 
+        // Extraer fichadas del empleado
+        let misFichadas = [];
+        if (fichadasData) {
+          Object.values(fichadasData).forEach(f => {
+            const fLegajo = String(f.legajo || "").trim();
+            const coincideLegajo = (fLegajo === legajoIngresado || parseInt(fLegajo, 10) === parseInt(legajoIngresado, 10));
+            if (coincideLegajo) {
+              misFichadas.push({
+                fecha: f.fechaHoraDispositivo || f.fecha,
+                legajo: f.legajo,
+                objetivo: f.objetivo || 'Objetivo General',
+                tipo: String(f.tipo || "").toUpperCase()
+              });
+            }
+          });
+        }
 
-          poblarSelectMeses(datosVigiladorGlobal);
-          procesarYRenderizar(datosVigiladorGlobal);
-          activarEscuchasInactividad();
-          reiniciarTemporizador();
-        })
-        .catch(err => {
-          console.error(err);
-          alert("Ocurrió un error al consultar las marcaciones.");
-        });
+        if (misFichadas.length === 0) {
+          alert("No se encontraron registros de fichadas para el legajo ingresado.");
+          return;
+        }
+
+        sessionStorage.setItem('vigilador_legajo', legajoIngresado);
+        sessionStorage.setItem('vigilador_nombre', nombreEmpleado);
+        datosVigiladorGlobal = misFichadas;
+
+        document.getElementById('formLoginVigilador').classList.add('hidden');
+        document.getElementById('infoSesionActiva').classList.remove('hidden');
+        document.getElementById('lblLegajoActivo').innerText = legajoIngresado;
+        document.getElementById('lblNombreActivo').innerText = nombreEmpleado;
+        document.getElementById('btnCerrarSesion').classList.remove('hidden');
+        document.getElementById('seccionNovedades').classList.remove('hidden'); 
+
+        poblarSelectMeses(datosVigiladorGlobal);
+        procesarYRenderizar(datosVigiladorGlobal);
+        activarEscuchasInactividad();
+        reiniciarTemporizador();
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Ocurrió un error al consultar Firebase.");
+      });
     }
 
     function ejecutarConsulta(legajo) {
-      fetch(URL_APPS_SCRIPT)
+      fetch(`${URL_FIREBASE}/fichadas.json`)
         .then(res => res.json())
-        .then(datos => {
-          localStorage.setItem('cache_datos_vigiladores', JSON.stringify(datos));
-          const marcacionesVigilador = datos.filter(f => String(f[1]).trim() === legajo);
-          if (marcacionesVigilador.length > 0) {
-            datosVigiladorGlobal = marcacionesVigilador;
+        .then(fichadasData => {
+          let misFichadas = [];
+          if (fichadasData) {
+            Object.values(fichadasData).forEach(f => {
+              const fLegajo = String(f.legajo || "").trim();
+              if (fLegajo === legajo || parseInt(fLegajo, 10) === parseInt(legajo, 10)) {
+                misFichadas.push({
+                  fecha: f.fechaHoraDispositivo || f.fecha,
+                  legajo: f.legajo,
+                  objetivo: f.objetivo || 'Objetivo General',
+                  tipo: String(f.tipo || "").toUpperCase()
+                });
+              }
+            });
+          }
+          if (misFichadas.length > 0) {
+            datosVigiladorGlobal = misFichadas;
             poblarSelectMeses(datosVigiladorGlobal);
             aplicarFiltros(); 
           }
@@ -308,8 +342,8 @@
       
       const mesesSet = new Set();
       datos.forEach(f => {
-        if(f[0]) {
-          const d = new Date(f[0]);
+        if(f.fecha) {
+          const d = new Date(f.fecha);
           if(!isNaN(d)) {
             const anio = d.getFullYear();
             const mes = String(d.getMonth() + 1).padStart(2, '0');
@@ -345,7 +379,7 @@
 
       if (mesFiltro !== 'todos') {
         filtrados = filtrados.filter(f => {
-          const d = new Date(f[0]);
+          const d = new Date(f.fecha);
           const anio = d.getFullYear();
           const mes = String(d.getMonth() + 1).padStart(2, '0');
           return `${anio}-${mes}` === mesFiltro;
@@ -354,7 +388,7 @@
 
       if (diaFiltro) {
         filtrados = filtrados.filter(f => {
-          const d = new Date(f[0]);
+          const d = new Date(f.fecha);
           const anio = d.getFullYear();
           const mes = String(d.getMonth() + 1).padStart(2, '0');
           const dia = String(d.getDate()).padStart(2, '0');
@@ -372,19 +406,19 @@
     }
 
     function procesarYRenderizar(marcacionesVigilador) {
-      marcacionesVigilador.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+      marcacionesVigilador.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
       let totalD = 0, totalN = 0, totalT = 0;
       const tabla = document.getElementById('cuerpoDetalle');
       tabla.innerHTML = "";
 
       for (let i = 0; i < marcacionesVigilador.length; i++) {
-        if (marcacionesVigilador[i][4] === 'ENTRADA') {
+        if (marcacionesVigilador[i].tipo === 'ENTRADA') {
           let entrada = marcacionesVigilador[i];
-          let salida = marcacionesVigilador[i + 1] && marcacionesVigilador[i + 1][4] === 'SALIDA' ? marcacionesVigilador[i + 1] : null;
+          let salida = marcacionesVigilador[i + 1] && marcacionesVigilador[i + 1].tipo === 'SALIDA' ? marcacionesVigilador[i + 1] : null;
 
-          let horas = salida ? calcularHoras(entrada[0], salida[0]) : { d: 0, n: 0, t: 0 };
-          let objetivoNombre = entrada[3] || (salida && salida[3]) || '-';
+          let horas = salida ? calcularHoras(entrada.fecha, salida.fecha) : { d: 0, n: 0, t: 0 };
+          let objetivoNombre = entrada.objetivo || (salida && salida.objetivo) || '-';
 
           totalD += horas.d;
           totalN += horas.n;
@@ -393,8 +427,8 @@
           const tr = document.createElement('tr');
           tr.className = "hover:bg-slate-700/30 transition";
           tr.innerHTML = `
-            <td class="p-4 text-xs font-mono">${new Date(entrada[0]).toLocaleString('es-AR', { hour12: false })}</td>
-            <td class="p-4 text-xs font-mono">${salida ? new Date(salida[0]).toLocaleString('es-AR', { hour12: false }) : '<span class="text-amber-400">En Turno</span>'}</td>
+            <td class="p-4 text-xs font-mono">${new Date(entrada.fecha).toLocaleString('es-AR', { hour12: false })}</td>
+            <td class="p-4 text-xs font-mono">${salida ? new Date(salida.fecha).toLocaleString('es-AR', { hour12: false }) : '<span class="text-amber-400">En Turno</span>'}</td>
             <td class="p-4 text-xs text-slate-300 font-medium">${objetivoNombre}</td>
             <td class="p-4 text-center text-xs font-semibold text-amber-400">${formatearAHorasReloj(horas.d)}</td>
             <td class="p-4 text-center text-xs font-semibold text-indigo-400">${formatearAHorasReloj(horas.n)}</td>
@@ -413,9 +447,10 @@
       document.getElementById('contenedorTabla').classList.remove('hidden');
     }
 
-    // 📝 ENVÍO DE NOVEDAD CON VALIDACIÓN ESTRICTA DE ESTAR EN SERVICIO Y GPS
+    // 📝 ENVÍO DE NOVEDAD A FIREBASE
     function enviarNovedadPortal() {
       const legajo = sessionStorage.getItem('vigilador_legajo');
+      const nombreVigilador = sessionStorage.getItem('vigilador_nombre') || `Legajo ${legajo}`;
       const tipoIncidencia = document.getElementById('tipoIncidencia').value;
       const descripcion = document.getElementById('descNovedad').value.trim();
       const inputArchivo = document.getElementById('fotoNovedadInput');
@@ -429,12 +464,12 @@
       let objetivoActual = "Objetivo Asignado";
 
       if (datosVigiladorGlobal.length > 0) {
-        let ordenadas = [...datosVigiladorGlobal].sort((a, b) => new Date(a[0]) - new Date(b[0]));
+        let ordenadas = [...datosVigiladorGlobal].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
         let ultimaMar = ordenadas[ordenadas.length - 1];
         
-        if (ultimaMar && ultimaMar[4] === 'ENTRADA') {
+        if (ultimaMar && ultimaMar.tipo === 'ENTRADA') {
           enServicio = true;
-          if (ultimaMar[3]) objetivoActual = ultimaMar[3];
+          if (ultimaMar.objetivo) objetivoActual = ultimaMar.objetivo;
         }
       }
 
@@ -461,11 +496,11 @@
           if (inputArchivo.files && inputArchivo.files[0]) {
             const lector = new FileReader();
             lector.onload = function(e) {
-              enviarDatosServidor(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, e.target.result);
+              enviarDatosFirebase(legajo, nombreVigilador, objetivoActual, tipoIncidencia, descripcion, lat, lon, e.target.result);
             };
             lector.readAsDataURL(inputArchivo.files[0]);
           } else {
-            enviarDatosServidor(legajo, objetivoActual, tipoIncidencia, descripcion, lat, lon, null);
+            enviarDatosFirebase(legajo, nombreVigilador, objetivoActual, tipoIncidencia, descripcion, lat, lon, "");
           }
         },
         function(error) {
@@ -475,32 +510,27 @@
       );
     }
 
-    function enviarDatosServidor(legajo, objetivo, tipoIncidencia, descripcion, lat, lon, fotoBase64) {
+    function enviarDatosFirebase(legajo, nombre, tipoIncidencia, descripcion, lat, lon, fotoBase64) {
       const payload = {
-        tipoAccion: "REGISTRAR_NOVEDAD",
+        fechaHora: new Date().toISOString(),
         legajo: legajo,
-        nombre: "Legajo " + legajo,
-        objetivo: objetivo,
+        nombre: nombre,
         tipoIncidencia: tipoIncidencia,
         descripcion: descripcion,
         latitud: lat,
         longitud: lon,
-        fotoBase64: fotoBase64 || ""
+        foto: fotoBase64
       };
 
-      fetch(URL_APPS_SCRIPT, {
+      fetch(`${URL_FIREBASE}/novedades.json`, {
         method: "POST",
         body: JSON.stringify(payload)
       })
       .then(res => res.json())
-      .then(respuesta => {
-        if (respuesta.exito) {
-          alert("✅ " + respuesta.mensaje);
-          document.getElementById('descNovedad').value = "";
-          document.getElementById('fotoNovedadInput').value = "";
-        } else {
-          alert("❌ Error: " + respuesta.mensaje);
-        }
+      .then(() => {
+        alert("✅ Novedad enviada correctamente a la central.");
+        document.getElementById('descNovedad').value = "";
+        document.getElementById('fotoNovedadInput').value = "";
       })
       .catch(error => {
         alert("Error de conexión al enviar novedad: " + error.toString());
@@ -510,6 +540,7 @@
     function cerrarSesionVigilador() {
       clearTimeout(temporizadorInactividad);
       sessionStorage.removeItem('vigilador_legajo');
+      sessionStorage.removeItem('vigilador_nombre');
       datosVigiladorGlobal = [];
       
       document.getElementById('formLoginVigilador').classList.remove('hidden');
