@@ -179,7 +179,6 @@
           .then(data => {
             if (data) {
               let listaNuevos = [];
-              // Firebase devuelve un objeto con claves aleatorias, lo recorremos con Object.values
               Object.values(data).forEach(item => {
                 const nombreObj = item.nombre || item.codigo;
                 if (nombreObj) listaNuevos.push(nombreObj);
@@ -235,7 +234,6 @@
         .then(data => {
           let encontrado = null;
           if (data) {
-            // Buscamos dentro de los registros de personal aquel cuyo legajo coincida
             Object.values(data).forEach(personal => {
               if (String(personal.legajo).trim() === String(legajoInput)) {
                 encontrado = personal;
@@ -272,7 +270,7 @@
             setTimeout(() => realizarCapturaCanvas(video, canvas, preview, status), 300);
           })
           .catch(err => {
-            alert("No se pudo acceder à la cámara. Verifique los permisos del navegador.");
+            alert("No se pudo acceder a la cámara. Verifique los permisos del navegador.");
           });
         return;
       }
@@ -281,11 +279,24 @@
     }
 
     function realizarCapturaCanvas(video, canvas, preview, status) {
-      canvas.width = video.videoWidth || 320;
-      canvas.height = video.videoHeight || 240;
+      // Definir un ancho máximo deseado para reducir drásticamente el peso de la imagen (ej: 400px)
+      const MAX_WIDTH = 400;
+      const originalWidth = video.videoWidth || 640;
+      const originalHeight = video.videoHeight || 480;
+
+      let targetWidth = originalWidth;
+      let targetHeight = originalHeight;
+
+      if (originalWidth > MAX_WIDTH) {
+        targetWidth = MAX_WIDTH;
+        targetHeight = Math.round((originalHeight * MAX_WIDTH) / originalWidth);
+      }
+
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
       
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
 
       const analisis = validarSelfieReal(canvas);
       if (!analisis.valido) {
@@ -296,11 +307,12 @@
         return;
       }
       
-      fotoBase64Global = canvas.toDataURL('image/jpeg', 0.5);
+      // Comprimir la imagen en formato JPEG con calidad 0.4 (40%) para que pese muy pocos KB
+      fotoBase64Global = canvas.toDataURL('image/jpeg', 0.4);
       
       preview.src = fotoBase64Global;
       preview.classList.remove('hidden');
-      status.innerText = "✓ Selfie válida capturada con éxito";
+      status.innerText = "✓ Selfie válida capturada con éxito (optimizada)";
       status.className = "text-xs text-emerald-400 text-center font-semibold";
     }
 
