@@ -164,7 +164,6 @@
       }
     }
 
-    // CARGAR OBJETIVOS DIRECTAMENTE DESDE FIREBASE
     function cargarObjetivos() {
       const selectObj = document.getElementById('objetivo');
       let objetivosGuardados = JSON.parse(localStorage.getItem('vga_lista_objetivos') || '[]');
@@ -213,7 +212,6 @@
       });
     }
 
-    // VALIDAR LEGAJO CONSULTANDO EL NODO PERSONAL DE FIREBASE
     function validarLegajo() {
       const legajoInput = document.getElementById('legajo').value.trim();
       const statusLbl = document.getElementById('legajo-status');
@@ -279,18 +277,13 @@
     }
 
     function realizarCapturaCanvas(video, canvas, preview, status) {
-      // Ancho reducido a 300px para máxima velocidad y evitar congelamientos
-      const MAX_WIDTH = 300;
+      // Optimizamos el tamaño a 320px de ancho para conservar la nitidez del rostro pero eliminar el peso excesivo
+      const MAX_WIDTH = 320;
       const originalWidth = video.videoWidth || 640;
       const originalHeight = video.videoHeight || 480;
 
-      let targetWidth = originalWidth;
-      let targetHeight = originalHeight;
-
-      if (originalWidth > MAX_WIDTH) {
-        targetWidth = MAX_WIDTH;
-        targetHeight = Math.round((originalHeight * MAX_WIDTH) / originalWidth);
-      }
+      let targetWidth = MAX_WIDTH;
+      let targetHeight = Math.round((originalHeight * MAX_WIDTH) / originalWidth);
 
       canvas.width = targetWidth;
       canvas.height = targetHeight;
@@ -307,11 +300,10 @@
         return;
       }
       
-      // Guardamos marca de aprobación local (ya no enviamos la imagen pesada en Base64 para que la petición vuele)
-      fotoBase64Global = "Selfie aprobada localmente";
+      // Comprimimos al 30% de calidad: la foto queda perfecta para validar identidad en el panel administrativo pero pesa solo unos pocos kilobytes
+      fotoBase64Global = canvas.toDataURL('image/jpeg', 0.3);
       
-      // Para la vista previa usamos una compresión extrema temporal solo para mostrar el cuadro verde al usuario
-      preview.src = canvas.toDataURL('image/jpeg', 0.2);
+      preview.src = fotoBase64Global;
       preview.classList.remove('hidden');
       status.innerText = "✓ Selfie válida capturada con éxito";
       status.className = "text-xs text-emerald-400 text-center font-semibold";
@@ -414,7 +406,7 @@
         latitud: lat,
         longitud: lng,
         mapa: `https://www.google.com/maps?q=${lat},${lng}`,
-        fotoValidada: fotoBase64Global, // Envía el estado optimizado y vuela la velocidad
+        fotoBase64: fotoBase64Global, // Enviamos la foto comprimida para que se vea en el panel de control al instante
         fechaHoraDispositivo: new Date().toISOString()
       };
 
@@ -462,7 +454,7 @@
         if (ultimaPendiente.legajo === legajo && ultimaPendiente.tipo === tipo) {
           const divResultado = document.getElementById('resultado');
           divResultado.className = "p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-200 border border-rose-500";
-          divResultado.innerText = `❌ Ya tienes una fichada de ${tipo} pendiente de sincronización. No puedes registrar dos veces seguidas lo mismo.`;
+          divResultado.innerText = `❌ Ya tienes una fichada de ${tipo} pendiente de sincronización. No puedes registrar два veces seguidas lo mismo.`;
           return; 
         }
       }
